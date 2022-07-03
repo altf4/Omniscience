@@ -86,7 +86,7 @@ export const LoginScreen = ({navigation}: {navigation: any}) => {
             "Content-Type": "application/x-www-form-urlencoded",
             "Authorization": "Basic V0pSWURITkdST0laSEw4QjpWNVZYSzZGTEcxWUkwR0QyWFkzSA=="
           },
-          body: formdata,
+          body: formdata.toString(),
         });
         const json = await response.json();
         if (response.status == 200) {

@@ -1,10 +1,13 @@
-import { Button, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Button, StyleSheet, Text, TextInput, View, SafeAreaView, FlatList} from 'react-native';
 import React, {useState, useEffect} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 
 export const DetailsScreen = ({navigation}: {navigation: any}) => {
     var [accessToken, setAccessToken] = useState('');
+    const [selectedId, setSelectedId] = useState('');
+    const [eventData, seteventData] = useState([]);
+
     const GRAPHQL_API = "https://api2.tabletop.tiamat-origin.cloud/silverbeak-griffin-service/graphql"
 
     // "OnLoad"
@@ -29,12 +32,13 @@ export const DetailsScreen = ({navigation}: {navigation: any}) => {
                     }
                 }
                
+                const value = await AsyncStorage.getItem("@access_token");
                 await loadAccessToken();
                 const response = await fetch(GRAPHQL_API, {
                     method: "POST",
                     headers: {
-                        "Content-Type": "application/x-www-form-urlencoded",
-                        "Authorization": "Bearer" + accessToken
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer " + value
                     },
                     body: JSON.stringify({
                         "operationName": "MyActiveEvents",
@@ -44,10 +48,14 @@ export const DetailsScreen = ({navigation}: {navigation: any}) => {
                 });
                 const json = await response.json();
                 if (response.status == 200) {
-                    console.log(json);
+                    const id = json["data"]["myActiveEvents"][0]["id"];
+                    seteventData([{"id": id, "title": "Event: " + id}]);
+                    console.log(eventData);
+
                 } else {
                     //TODO FAILED TO LOG IN
-                    console.log(json);
+                    console.log("Failed to authenticate: ", json);
+                    navigation.navigate("LoginScreen");
                 }
             }
             catch(e){
@@ -62,21 +70,47 @@ export const DetailsScreen = ({navigation}: {navigation: any}) => {
 
     const styles = StyleSheet.create({
         container: {
-          flex: 1,
-          backgroundColor: '#fff',
-          alignItems: 'center',
-          // top: "10%",
+            flex: 1,
+            backgroundColor: '#fff',
+            alignItems: 'center',
+            // top: "10%",
         },
         titleLabel: {
-          flex: 0,
-          fontSize: 64,
-          fontWeight: 'bold',
-        }
+            flex: 0,
+            fontSize: 64,
+            fontWeight: 'bold',
+        },
+        item: {
+            backgroundColor: '#71a0e3',
+            padding: 20,
+            marginVertical: 8,
+            marginHorizontal: 16,
+        },
+            title: {
+            fontSize: 32,
+        },
     });
+
+
+    const Item = ({ title }: {title: string}) => (
+        <View style={styles.item}>
+          <Text style={styles.title}>{title}</Text>
+        </View>
+    );
+    const renderItem = ({ item }: {item: any}) => (
+        <Item title={item.title} />
+    );
 
     return (
         <View style={styles.container}>
-        <Text style={styles.titleLabel}>Details</Text>
+        <Text style={styles.titleLabel}>Events:</Text>
+        <SafeAreaView style={styles.container}>
+            <FlatList
+                data={eventData}
+                renderItem={renderItem}
+                keyExtractor={item => item.id}
+            />
+        </SafeAreaView>
       </View>
     );
 }
