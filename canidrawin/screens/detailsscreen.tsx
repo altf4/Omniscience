@@ -1,11 +1,11 @@
-import { Button, StyleSheet, Text, TextInput, View, SafeAreaView, FlatList} from 'react-native';
+import { Button, StyleSheet, Text, TextInput, View, SafeAreaView, TouchableOpacity, FlatList, ViewStyle} from 'react-native';
 import React, {useState, useEffect} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 
 export const DetailsScreen = ({navigation}: {navigation: any}) => {
     var [accessToken, setAccessToken] = useState('');
-    const [selectedId, setSelectedId] = useState('');
+    const [selectedId, setSelectedId] = useState(null);
     const [eventData, seteventData] = useState([]);
 
     const GRAPHQL_API = "https://api2.tabletop.tiamat-origin.cloud/silverbeak-griffin-service/graphql"
@@ -92,23 +92,28 @@ export const DetailsScreen = ({navigation}: {navigation: any}) => {
     });
 
 
-    const Item = ({ title }: {title: string}) => (
-        <View style={styles.item}>
-          <Text style={styles.title}>{title}</Text>
-        </View>
+    const Item = ({ title, onPress, backgroundColor, textColor }: {title: string, onPress: any, backgroundColor: any, textColor: any}) => (
+        <TouchableOpacity onPress={onPress} style={[styles.item, backgroundColor]}>
+          <Text style={[styles.title, textColor]}>{title}</Text>
+        </TouchableOpacity>
     );
     const renderItem = ({ item }: {item: any}) => (
-        <Item title={item.title} />
+        <Item title={item.title}
+            onPress={() => {console.log("selectedId " + selectedId); setSelectedId(item.id)}}
+            backgroundColor={"#6e3b6e"}
+            textColor={"black"}
+        />
     );
 
     return (
         <View style={styles.container}>
-        <Text style={styles.titleLabel}>Events:</Text>
+        <Text style={styles.titleLabel}>Select Event:</Text>
         <SafeAreaView style={styles.container}>
             <FlatList
                 data={eventData}
                 renderItem={renderItem}
                 keyExtractor={item => item.id}
+                extraData={selectedId}
             />
         </SafeAreaView>
       </View>
