@@ -9,7 +9,6 @@ import {EventsScreen} from './screens/eventsscreen'
 import {StandingsScreen} from './screens/standingsscreen';
 import { createStackNavigator } from '@react-navigation/stack';
 
-// const Stack = createStackNavigator<RootStackParamList>();
 const Stack = createNativeStackNavigator();
 
 export default function App() {

@@ -76,6 +76,194 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         }
       }
 
+    // Returns bool of whether the target player has top8'd the event after simulating the rest of the event
+    //  originalPlayers - dict of personaId -> Player
+    //  pairings - array of personaId pairs
+    //  targetPlayer - personaId of the player to simulate for
+    //  result - One of "win", "draw", or "loss"
+    async function SimulateRound(originalPlayers: {[personaId: string] : Player}, pairings: any[], targetPlayer: string, result: string) {
+        // Make a copy of the players dict since we're going to be mutating it
+        var players: {[personaId: string] : Player} = {};
+        for (let player in originalPlayers) {
+            players[player] = {...originalPlayers[player]};
+        }
+
+        for (let pairing in pairings) {
+            var playerA: Player = players[pairings[pairing][0]];
+            var playerB: Player = players[pairings[pairing][1]];
+
+            var dieroll = Math.random();
+            var randomdraw = Math.random();
+            var isBye: boolean = false;
+    
+            // Use the prescripted result if this is the target user
+            if (targetPlayer === playerA.personaId || targetPlayer === playerB.personaId) {
+                // reset the players so Player A is the target
+                playerA = players[targetPlayer];
+                if (pairing[0] === targetPlayer){
+                    playerB = players[pairings[pairing][1]];
+                } else {
+                    playerB = players[pairings[pairing][0]];
+                }
+                if (result === "win") {
+                    // Assume worst case win (2-1)
+                    dieroll = 0.6;
+                    randomdraw = 1;
+                }
+                if (result === "loss") {
+                    // Assume worse case loss (0-2)
+                    dieroll = 0.1;
+                    randomdraw = 1;
+                } 
+                if (result === "draw") {
+                    randomdraw = 0;
+                }
+            }
+            
+            // If one of the players is "bye", then handle that separately
+            if ("bye" === playerA.personaId || "bye" === playerB.personaId) {
+                // Set playerA to the non-bye player
+                if ("bye" === pairings[pairing][0]){
+                    playerA = players[pairings[pairing][1]];
+                } else {
+                    playerA = players[pairings[pairing][0]];
+                }
+                isBye = true;
+                // Byes are considered 2-0 wins, count it now
+                playerA.wins += 1
+                playerA.gameWins += 2
+            }
+
+            // Non-bye round
+            if (isBye === false) {
+                // First, chance of unintentional draw (result assumed to be 1-1)
+                // TODO: Configurable draw rate
+                if (randomdraw < 0.01) {
+                    playerA.draws += 1;
+                    playerB.draws += 1;
+                    playerA.gameWins += 1;
+                    playerB.gameWins += 1;
+                }
+                // 4 possible equally likely scenarios:
+                //   0 - 2
+                //   1 - 2
+                //   2 - 1
+                //   2 - 0
+                else if(dieroll < 0.25) {
+                    playerA.wins += 0
+                    playerB.wins += 1
+                    playerA.losses += 1
+                    playerB.losses += 0
+                    playerA.gameWins += 0
+                    playerB.gameWins += 2
+                    playerA.gameLosses += 2
+                    playerB.gameLosses += 0
+                }
+                else if (0.25 <= dieroll && dieroll < 0.50) {
+                    playerA.wins += 0
+                    playerB.wins += 1
+                    playerA.losses += 1
+                    playerB.losses += 0
+                    playerA.gameWins += 1
+                    playerB.gameWins += 2
+                    playerA.gameLosses += 2
+                    playerB.gameLosses += 1
+                }
+                else if (0.50 <= dieroll && dieroll < 0.75  ){
+                    playerA.wins += 1
+                    playerB.wins += 0
+                    playerA.losses += 0
+                    playerB.losses += 1
+                    playerA.gameWins += 2
+                    playerB.gameWins += 1
+                    playerA.gameLosses += 1
+                    playerB.gameLosses += 2
+                }
+                else {
+                    playerA.wins += 1
+                    playerB.wins += 0
+                    playerA.losses += 0
+                    playerB.losses += 1
+                    playerA.gameWins += 2
+                    playerB.gameWins += 0
+                    playerA.gameLosses += 0
+                    playerB.gameLosses += 2
+                }
+            }
+        }
+        // Recalculate breakers now that the round has finished
+        for (let playerId in players) {
+            // Don't bother for the bye player
+            if (playerId !== "bye") {
+                var player: Player = players[playerId];
+                var matchscores: number[] = [];
+                var gamescores: number[] = [];
+                for (let opponent of player.opponents) {
+                    // Again, don't recalculate for bye players
+                    if (opponent !== "bye") {
+                        // Match and game winrate has a floor of 1/3, per https://blogs.magicjudges.org/rules/mtr-appendix-c/
+                        const matchWinRate: number = players[opponent].wins / (players[opponent].wins+players[opponent].losses);
+                        matchscores.push(Math.max(1/3, matchWinRate));
+                        const gameWinRate: number = players[opponent].gameWins / (players[opponent].gameWins+players[opponent].gameLosses);
+                        gamescores.push(Math.max(1/3, gameWinRate));
+                    }
+                }
+                // Average out the match and game scores
+                matchscores.forEach((element) => {
+                    player.opponentMatchWinPercent += element;
+                });
+                player.opponentMatchWinPercent /= matchscores.length;
+                gamescores.forEach((element) => {
+                    player.opponentGameWinPercent += element;
+                });
+                player.opponentGameWinPercent /= gamescores.length;
+                player.gameWinPercent = Math.max(1/3, player.gameWins / (player.gameWins+player.gameLosses));
+                player.matchPoints = (player.wins * 3) + player.draws;
+            }
+        }
+
+        // Flatten players map into array
+        var playersArray: Player[] = [];
+        for (let player in players) {
+            playersArray.push(players[player]);
+        }
+        // Sort the players by breakers
+        function playerSort(a: Player, b: Player) {
+            if (a.matchPoints === b.matchPoints){
+                // First breaker: Opponent Match Win Percent
+                if(a.opponentMatchWinPercent === b.opponentMatchWinPercent) {
+                    // Second breaker: Game win percent
+                    if(a.opponentMatchWinPercent === b.opponentMatchWinPercent) {
+                        // Third breaker: Opponent game win percent
+                        return a.opponentGameWinPercent > b.opponentGameWinPercent ? -1 : 1;
+                        // What to do if this is STILL tied? Unclear. But it ought to be pretty rare
+                    } else {
+                        return a.gameWinPercent > b.gameWinPercent ? -1 : 1;
+                    }
+                } else {
+                    return a.opponentMatchWinPercent > b.opponentMatchWinPercent ? -1 : 1;
+                }
+            } else {
+                return a.matchPoints > b.matchPoints ? -1 : 1;
+            }
+            
+        }
+        playersArray.sort(playerSort);
+        // Just get the top 8
+        const top8: Player[] = playersArray.slice(0, 8)
+
+        // console.log("top 8: targetPlayer", targetPlayer);
+        for (let index in top8) {
+            const player: Player = playersArray[index];
+            // console.log(player.firstName + " " + player.matchPoints + " " + player.wins + "-" + player.losses + "-" + player.draws);
+            if (targetPlayer === player.personaId){
+                // console.log("success");
+                return true;
+            }
+        }
+        return false;
+    }
+
     // "OnLoad"
     useEffect(() => {
         async function fetchStandings () {
@@ -182,13 +370,29 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                     players[pairings[pairing][1]].opponents.push(pairings[pairing][0])
                 }
  
+                console.log("ourselves " + personaId);
+
 
                 // Scenario 1: Match win
+                var successes = 0;
+                for (let i = 0; i < 10; i++) { 
+                    successes += Number(await SimulateRound(players, pairings, personaId, "win"));
+                }
+                console.log("With a win: " + successes);
 
                 // Scenario 2: Draw
+                successes = 0;
+                for (let i = 0; i < 10; i++) { 
+                    successes += Number(await SimulateRound(players, pairings, personaId, "draw"));
+                }
+                console.log("With a draw: " + successes);
 
                 // Scenario 3: Match loss
-
+                successes = 0;
+                for (let i = 0; i < 10; i++) { 
+                    successes += Number(await SimulateRound(players, pairings, personaId, "loss"));
+                }
+                console.log("With a loss: " + successes);
 
                 // Update the display data structure
                 for (let personaId in players) {
