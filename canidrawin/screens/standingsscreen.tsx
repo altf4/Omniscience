@@ -1,4 +1,4 @@
-import { Button, StyleSheet, Text, TextInput, View, SafeAreaView, TouchableOpacity, FlatList, ViewStyle} from 'react-native';
+import { Button, StyleSheet, Text, TextInput, View, SafeAreaView, TouchableOpacity, FlatList, ViewStyle, TouchableHighlightBase} from 'react-native';
 import React, {useState, useEffect} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
@@ -7,6 +7,8 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     const GRAPHQL_API = "https://api2.tabletop.tiamat-origin.cloud/silverbeak-griffin-service/graphql"
     const [standingsData, setStandingsData] = useState([]);
     const [selectedId, setSelectedId] = useState(null);
+    const [currentRound, setCurrentRound] = useState(0);
+    const [minRounds, setMinRounds] = useState(0);
 
     // Fetches a new access token from our current refresh token
     async function refreshAccess() {
@@ -36,6 +38,43 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         }
     }
 
+    class Player {
+        wins: number;
+        losses: number;
+        draws: number;
+        matchPoints: number;
+        gameWinPercent: number;
+        gameWins: number;
+        gameLosses: number;
+        // These two have to be derived once all matches have finished for the round
+        opponentGameWinPercent: number;
+        opponentMatchWinPercent: number;
+        opponents: string[]; // Array of personaId's for this player's opponents
+        rank: number;
+        firstName: string;
+        lastName: string;
+        personaId: string;
+        isBye: boolean;
+
+        constructor() {
+          this.wins = 0;
+          this.losses = 0;
+          this.draws = 0;
+          this.matchPoints = 0;
+          this.gameWinPercent = 0;
+          this.gameWins = 0;
+          this.gameLosses = 0;
+          this.opponentGameWinPercent = 0;
+          this.opponentMatchWinPercent = 0;
+          this.opponents = [];
+          this.rank = 0;
+          this.firstName = "";
+          this.lastName = "";
+          this.personaId = "";
+          this.isBye = false;
+        }
+      }
+
     // "OnLoad"
     useEffect(() => {
         async function fetchStandings () {
@@ -62,18 +101,81 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             const json = await response.json();
             if (response.status == 200) {
                 var standingsArray: any = [];
+
+                var players: {[personaId: string] : Player} = {};
+
+                // Build initial players array
                 for (var team of json["data"]["event"]["gameState"]["standings"]) {
-                    const name: string = team["team"]["players"][0]["firstName"] + " " + team["team"]["players"][0]["lastName"] 
-                    standingsArray.push({
-                        "id": team["team"]["players"][0]["personaId"], 
-                        "title": name,
-                        "rank": Number(team["rank"]),
-                        "matchPoints": Number(team["matchPoints"]),
-                        }
-                    );
-                    // console.log(name + team["team"]["players"][0]["rank"]);
-                    // console.log(JSON.stringify(team));
+                    var player = new Player();
+                    player.wins = Number(team["wins"]);
+                    player.losses = Number(team["losses"]);
+                    player.draws = Number(team["draws"]);
+                    player.matchPoints = Number(team["matchPoints"]);
+                    player.gameWinPercent = Number(team["gameWinPercent"]);
+                    player.opponentGameWinPercent = Number(team["opponentGameWinPercent"]);
+                    player.opponentMatchWinPercent = Number(team["opponentMatchWinPercent"]);
+                    player.rank = Number(team["rank"]);
+                    player.firstName = team["team"]["players"][0]["firstName"];
+                    player.lastName = team["team"]["players"][0]["lastName"];
+                    player.personaId = team["team"]["players"][0]["personaId"];
+                    players[player.personaId] = player;
                 }
+
+                // Add a bye player. (We may need even with an even number of entrants, due to drops)
+                var bye = new Player();
+                bye.isBye = true;
+                players["bye"] = bye;
+
+                // Set the round data
+                setMinRounds(Number(json["data"]["event"]["gameState"]["minRounds"]))
+                setCurrentRound(Number(json["data"]["event"]["gameState"]["currentRoundNumber"]))
+
+                // Go through all past results and calculate game win/loss counts
+                //      This information is present here in the match history, but not given to us explicitly
+                const rounds: any[] = json["data"]["event"]["gameState"]["rounds"];
+                for (var round of rounds) {
+                    if (Number(round["number"]) < rounds.length){
+                        const matches: any[] = round["matches"];
+                        for (var match of matches) {
+                            if (match["isBye"] === false){
+                                const personaA: string = match["teams"][0]["players"][0]["personaId"];
+                                const personaB: string = match["teams"][1]["players"][0]["personaId"];
+                                // Add each other to the opponent list
+                                players[personaA].opponents.push(personaB);
+                                players[personaB].opponents.push(personaA);
+                                for (var team of match["teams"]){
+                                    if (team["results"]){
+                                        players[team["players"][0]["personaId"]].gameWins += team["results"][0]["wins"]
+                                        players[team["players"][0]["personaId"]].gameLosses += team["results"][0]["losses"]
+                                        console.log(team["players"][0]["personaId"], team["results"][0]["wins"], "-", team["results"][0]["losses"])                                                     
+                                    }
+                                }
+                            } else {
+                                // This is a bye
+                                const personaA: string = match["teams"][0]["players"][0]["personaId"]
+                                players[personaA].gameWins += 2
+                            }
+                        }
+                    }
+                }              
+
+                // Update the display data structure
+                for (let personaId in players) {
+                const player: Player = players[personaId];
+                if (player.isBye === false){
+                    standingsArray.push({
+                        "id": player.personaId, 
+                        "title": player.firstName + " " + player.lastName,
+                        "rank": player.rank,
+                        "matchPoints": player.matchPoints,
+                        "omw": Math.round(player.opponentMatchWinPercent * 1000) / 10, // round display value to 1 decimal point
+                        "ogw": Math.round(player.opponentGameWinPercent * 1000) / 10, // round display value to 1 decimal point
+                        "gwp": Math.round(player.gameWinPercent * 1000) / 10, // round display value to 1 decimal point
+                    }
+                    );
+                }
+            }
+
                 setStandingsData(standingsArray);
             } else {
                 console.log("Error fetching standings")
@@ -104,13 +206,16 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         },
     });
 
-    const Item = ({ rank, title, matchPoints, onPress, backgroundColor, textColor }: {rank: number, title: string, matchPoints: number, onPress: any, backgroundColor: any, textColor: any}) => (
+    const Item = ({ rank, title, matchPoints, omw, gwp, ogw, onPress, backgroundColor, textColor }: {rank: number, title: string, matchPoints: number, omw: number, gwp: number, ogw: number, onPress: any, backgroundColor: any, textColor: any}) => (
         <TouchableOpacity onPress={onPress} style={[styles.item, backgroundColor]}>
             <View style={[styles.container, {
                 flexDirection: "row"}]}>
                 <Text style={[styles.item, textColor]}>{rank}</Text>
                 <Text style={[styles.item, textColor]}>{title}</Text>
                 <Text style={[styles.item, textColor]}>{matchPoints}</Text>
+                <Text style={[styles.item, textColor]}>{omw}</Text>
+                <Text style={[styles.item, textColor]}>{gwp}</Text>
+                <Text style={[styles.item, textColor]}>{ogw}</Text>
             </View>
         </TouchableOpacity>
     );
@@ -119,6 +224,9 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             rank={item.rank}
             title={item.title}
             matchPoints={item.matchPoints}
+            omw={item.omw}
+            gwp={item.gwp}
+            ogw={item.ogw}
             onPress={() => {
                 setSelectedId(item.id); 
                 console.log("selecting player: " + item.id)
@@ -134,13 +242,16 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             <Text style={[styles.headerItem]}>Place</Text>
             <Text style={[styles.headerItem]}>First Name</Text>
             <Text style={[styles.headerItem]}>Points</Text>
+            <Text style={[styles.headerItem]}>OMW%</Text>
+            <Text style={[styles.headerItem]}>GW%</Text>
+            <Text style={[styles.headerItem]}>OGW%</Text>
         </View>
     );
     
 
     return (
         <View style={styles.container}>
-        <Text style={styles.titleLabel}>Standings</Text>
+        <Text style={styles.titleLabel}>Round {currentRound} of {minRounds}</Text>
         <SafeAreaView style={styles.container}>
             <FlatList
                 data={standingsData}
