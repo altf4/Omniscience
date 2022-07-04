@@ -87,6 +87,9 @@ export const LoginScreen = ({navigation}: {navigation: any}) => {
         setFailedAuth(false)
         await AsyncStorage.setItem("@access_token", json["access_token"]);
         await AsyncStorage.setItem("@refresh_token", json["refresh_token"]);
+        console.log(JSON.stringify(json));
+        await AsyncStorage.setItem("@ourPersonaId", json["persona_id"]);
+        await AsyncStorage.setItem("@displayName", json["display_name"]);
         navigator.navigate("Events")
       } else {
         //TODO FAILED TO LOG IN

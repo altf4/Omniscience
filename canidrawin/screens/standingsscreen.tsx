@@ -9,6 +9,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     const [selectedId, setSelectedId] = useState(null);
     const [currentRound, setCurrentRound] = useState(0);
     const [minRounds, setMinRounds] = useState(0);
+    const [ourPersonaId, setOurPersonaId] = useState('');
 
     // Fetches a new access token from our current refresh token
     async function refreshAccess() {
@@ -78,6 +79,10 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     // "OnLoad"
     useEffect(() => {
         async function fetchStandings () {
+            // Set our personaId to state
+            const personaId: any = await AsyncStorage.getItem("@ourPersonaId");
+            setOurPersonaId(personaId);
+
             // TODO: We refresh at the start here, which maybe is suboptimal. Perhaps we should only refresh on error. But that seems more complex for now
             if(await refreshAccess() === false) {
                 console.log("Failed to refresh authentication");
@@ -197,6 +202,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                             "omw": Math.round(player.opponentMatchWinPercent * 1000) / 10, // round display value to 1 decimal point
                             "ogw": Math.round(player.opponentGameWinPercent * 1000) / 10, // round display value to 1 decimal point
                             "gwp": Math.round(player.gameWinPercent * 1000) / 10, // round display value to 1 decimal point
+                            "personaId": player.personaId,
                         }
                         );
                     }
@@ -218,6 +224,18 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
           backgroundColor: '#fff',
           alignItems: 'center',
         },
+        itemContainer: {
+            flex: 1,
+            backgroundColor: '#ffffff',
+            alignItems: 'center',
+            flexDirection: "row",
+        },
+        ourItemContainer: {
+            flex: 1,
+            backgroundColor: '#dddddd',
+            alignItems: 'center',
+            flexDirection: "row",
+        },        
         titleLabel: {
           flex: 0,
           fontSize: 20,
@@ -232,10 +250,9 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         },
     });
 
-    const Item = ({ rank, title, matchPoints, omw, gwp, ogw, onPress, backgroundColor, textColor }: {rank: number, title: string, matchPoints: number, omw: number, gwp: number, ogw: number, onPress: any, backgroundColor: any, textColor: any}) => (
+    const Item = ({ personaId, rank, title, matchPoints, omw, gwp, ogw, onPress, backgroundColor, textColor }: {personaId: string, rank: number, title: string, matchPoints: number, omw: number, gwp: number, ogw: number, onPress: any, backgroundColor: any, textColor: any}) => (
         <TouchableOpacity onPress={onPress} style={[styles.item, backgroundColor]}>
-            <View style={[styles.container, {
-                flexDirection: "row"}]}>
+            <View style={personaId === ourPersonaId ? styles.ourItemContainer : styles.itemContainer}>
                 <Text style={[styles.item, textColor]}>{rank}</Text>
                 <Text style={[styles.item, textColor]}>{title}</Text>
                 <Text style={[styles.item, textColor]}>{matchPoints}</Text>
@@ -259,6 +276,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             }}
             backgroundColor={"#6e3b6e"}
             textColor={"black"}
+            personaId={item.personaId}
         />
     );
 

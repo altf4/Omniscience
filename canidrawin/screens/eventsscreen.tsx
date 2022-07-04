@@ -6,6 +6,7 @@ export const EventsScreen = ({navigation}: {navigation: any}) => {
     var [accessToken, setAccessToken] = useState('');
     const [selectedId, setSelectedId] = useState(null);
     const [eventData, setEventData] = useState([]);
+    const [displayName, setDisplayName] = useState('');
 
     const GRAPHQL_API = "https://api2.tabletop.tiamat-origin.cloud/silverbeak-griffin-service/graphql"
 
@@ -42,6 +43,11 @@ export const EventsScreen = ({navigation}: {navigation: any}) => {
         //Get a list of events the user is in
         async function fetchEvents () {
             try {
+                const display: any = await AsyncStorage.getItem("@displayName");
+                if (display){
+                    setDisplayName(display);
+                }
+
                 // TODO: We refresh at the start here, which maybe is suboptimal. Perhaps we should only refresh on error. But that seems more complex for now
                 if(await refreshAccess() === false) {
                     console.log("Failed to refresh authentication");
@@ -104,6 +110,9 @@ export const EventsScreen = ({navigation}: {navigation: any}) => {
         title: {
             fontSize: 32,
         },
+        welcome: {
+            fontSize: 24,
+        },
     });
 
 
@@ -124,6 +133,7 @@ export const EventsScreen = ({navigation}: {navigation: any}) => {
 
     return (
         <View style={styles.container}>
+        <Text style={styles.welcome}>Welcome {displayName}</Text>
         <Text style={styles.titleLabel}>Select Event:</Text>
         <SafeAreaView style={styles.container}>
             <FlatList
