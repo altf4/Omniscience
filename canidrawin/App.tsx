@@ -5,7 +5,8 @@ import {NavigationContainer} from "@react-navigation/native";
 import { StackRouter } from 'react-navigation';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {LoginScreen} from './screens/loginscreen'
-import {DetailsScreen} from './screens/detailsscreen'
+import {EventsScreen} from './screens/eventsscreen'
+import {StandingsScreen} from './screens/standingsscreen';
 import { createStackNavigator } from '@react-navigation/stack';
 
 // const Stack = createStackNavigator<RootStackParamList>();
@@ -16,13 +17,17 @@ export default function App() {
     <NavigationContainer>
       <Stack.Navigator initialRouteName='LoginScreen'>
         <Stack.Screen
-          name="LoginScreen"
+          name="Login"
           component={LoginScreen}>
         </Stack.Screen>
         <Stack.Screen
-          name="DetailsScreen"
-          component={DetailsScreen}>
+          name="Events"
+          component={EventsScreen}>
         </Stack.Screen>
+        <Stack.Screen
+          name="Standings"
+          component={StandingsScreen}>
+        </Stack.Screen>      
       </Stack.Navigator>
     </NavigationContainer>
   );

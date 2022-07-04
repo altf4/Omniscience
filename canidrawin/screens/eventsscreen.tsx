@@ -1,18 +1,16 @@
 import { Button, StyleSheet, Text, TextInput, View, SafeAreaView, TouchableOpacity, FlatList, ViewStyle} from 'react-native';
 import React, {useState, useEffect} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { StatusBar } from 'expo-status-bar';
 
-export const DetailsScreen = ({navigation}: {navigation: any}) => {
+export const EventsScreen = ({navigation}: {navigation: any}) => {
     var [accessToken, setAccessToken] = useState('');
     const [selectedId, setSelectedId] = useState(null);
-    const [eventData, seteventData] = useState([]);
+    const [eventData, setEventData] = useState([]);
 
     const GRAPHQL_API = "https://api2.tabletop.tiamat-origin.cloud/silverbeak-griffin-service/graphql"
 
     // "OnLoad"
     useEffect(() => {
-        
         //Get a list of events the user is in
         async function fetchEvents () {
             try {
@@ -23,12 +21,12 @@ export const DetailsScreen = ({navigation}: {navigation: any}) => {
                             // Value previously stored
                             setAccessToken(value);
                         } else{
-                            navigation.navigate("LoginScreen")
+                            navigation.navigate("Login")
                         }
                     }
                     catch(e){
                         console.log(e);
-                        navigation.navigate("LoginScreen")
+                        navigation.navigate("Login")
                     }
                 }
                
@@ -48,14 +46,15 @@ export const DetailsScreen = ({navigation}: {navigation: any}) => {
                 });
                 const json = await response.json();
                 if (response.status == 200) {
+                    //TODO List ALL events, not just first
                     const id = json["data"]["myActiveEvents"][0]["id"];
-                    seteventData([{"id": id, "title": "Event: " + id}]);
+                    setEventData([{"id": id, "title": "Event: " + id}]);
                     console.log(eventData);
 
                 } else {
                     //TODO FAILED TO LOG IN
                     console.log("Failed to authenticate: ", json);
-                    navigation.navigate("LoginScreen");
+                    navigation.navigate("Login");
                 }
             }
             catch(e){
@@ -73,7 +72,6 @@ export const DetailsScreen = ({navigation}: {navigation: any}) => {
             flex: 1,
             backgroundColor: '#fff',
             alignItems: 'center',
-            // top: "10%",
         },
         titleLabel: {
             flex: 0,
@@ -86,7 +84,7 @@ export const DetailsScreen = ({navigation}: {navigation: any}) => {
             marginVertical: 8,
             marginHorizontal: 16,
         },
-            title: {
+        title: {
             fontSize: 32,
         },
     });
@@ -99,7 +97,9 @@ export const DetailsScreen = ({navigation}: {navigation: any}) => {
     );
     const renderItem = ({ item }: {item: any}) => (
         <Item title={item.title}
-            onPress={() => {console.log("selectedId " + selectedId); setSelectedId(item.id)}}
+            onPress={() => {console.log("Passing over to " + item.id); navigation.navigate("Standings", {
+                eventID: item.id,
+              });}}
             backgroundColor={"#6e3b6e"}
             textColor={"black"}
         />
