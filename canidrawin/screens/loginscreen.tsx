@@ -7,16 +7,8 @@ export const LoginScreen = ({navigation}: {navigation: any}) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   var [accessToken, setAccessToken] = useState('');
+  var [refreshToken, setRefreshToken] = useState('');
   var [failedAuth, setFailedAuth] = useState(false);
-
-  async function saveAccessToken(value: string) {
-    try{
-      await AsyncStorage.setItem("@access_token", value);
-    }
-    catch(e){
-      console.log(e);
-    }
-  }
 
   // Are we already logged in?
   useEffect(() => {
@@ -34,9 +26,7 @@ export const LoginScreen = ({navigation}: {navigation: any}) => {
         console.log(e);
       }
     }
-
     loadAccessToken();
-    
   }, []);
 
   const styles = StyleSheet.create({
@@ -44,7 +34,6 @@ export const LoginScreen = ({navigation}: {navigation: any}) => {
         flex: 1,
         backgroundColor: '#fff',
         alignItems: 'center',
-        // top: "10%",
       },
       titleLabel: {
         flex: 0,
@@ -55,22 +44,27 @@ export const LoginScreen = ({navigation}: {navigation: any}) => {
         flex: 0,
         fontSize: 18,
       },
-      username: {
+      bottomsubtitle: {
         flex: 0,
+        fontSize: 12,
+      },      
+      username: {
+        flex: 1,
         fontSize: 18,
       },
       password: {
-        flex: 0,
+        flex: 1,
         fontSize: 18,
       },
       loginButton: {
-        flex: 0,
+        flex: 1,
+        fontSize: 30,
       },
       faildauth: {
         flex: 0,
         opacity: failedAuth ? 100 : 0,
         color: "red"
-      }
+      },
     });
 
 
@@ -91,8 +85,8 @@ export const LoginScreen = ({navigation}: {navigation: any}) => {
       const json = await response.json();
       if (response.status == 200) {
         setFailedAuth(false)
-        await saveAccessToken(json["access_token"]);
-        console.log(json);
+        await AsyncStorage.setItem("@access_token", json["access_token"]);
+        await AsyncStorage.setItem("@refresh_token", json["refresh_token"]);
         navigator.navigate("Events")
       } else {
         //TODO FAILED TO LOG IN
@@ -101,13 +95,14 @@ export const LoginScreen = ({navigation}: {navigation: any}) => {
   }
 
   return (
-      <View style={styles.container}>
+    <View style={styles.container}>
       <Text style={styles.titleLabel}>Can I Draw In?</Text>
       <Text style={styles.subtitle}>Enter your Companion App credentials</Text>
       <TextInput style={styles.username} placeholder="Username" onChangeText={(username) => setUsername(username)}/>
       <TextInput style={styles.password} placeholder="Password" secureTextEntry={true} onChangeText={(password) => setPassword(password)}/>
       <Button title="Login" onPress={(e) => onLoginPress(e, username, password, navigation)}/>
       <Text style={[styles.faildauth]}>Login Failed</Text>
+      <Text style={styles.bottomsubtitle}>Math is for blockers, not top 8 competitors</Text>
       <StatusBar style="auto" />
     </View>
   );

@@ -9,34 +9,51 @@ export const EventsScreen = ({navigation}: {navigation: any}) => {
 
     const GRAPHQL_API = "https://api2.tabletop.tiamat-origin.cloud/silverbeak-griffin-service/graphql"
 
+    // Fetches a new access token from our current refresh token
+    async function refreshAccess() {
+        const value = await AsyncStorage.getItem("@refresh_token");
+        if (value !== null) {
+        const formdata = new URLSearchParams({
+            "grant_type": "refresh_token", 
+            "refresh_token": value,
+        });
+        const response = await fetch('https://api.platform.wizards.com/auth/oauth/token', {
+            method: "POST",
+            headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Authorization": "Basic V0pSWURITkdST0laSEw4QjpWNVZYSzZGTEcxWUkwR0QyWFkzSA=="
+            },
+            body: formdata.toString(),
+        });
+        const json = await response.json();
+        if (response.status == 200) {
+            await AsyncStorage.setItem("@access_token", json["access_token"]);
+            return true
+        } else {
+            return false
+        }      
+        } else {
+        return false
+        }
+    }
+
     // "OnLoad"
     useEffect(() => {
         //Get a list of events the user is in
         async function fetchEvents () {
             try {
-                async function loadAccessToken () {
-                    try {
-                        const value = await AsyncStorage.getItem("@access_token");
-                        if (value !== null) {
-                            // Value previously stored
-                            setAccessToken(value);
-                        } else{
-                            navigation.navigate("Login")
-                        }
-                    }
-                    catch(e){
-                        console.log(e);
-                        navigation.navigate("Login")
-                    }
+                // TODO: We refresh at the start here, which maybe is suboptimal. Perhaps we should only refresh on error. But that seems more complex for now
+                if(await refreshAccess() === false) {
+                    console.log("Failed to refresh authentication");
+                    navigation.navigate("Login");                    
                 }
-               
-                const value = await AsyncStorage.getItem("@access_token");
-                await loadAccessToken();
+                
+                const access_token = await AsyncStorage.getItem("@access_token");
                 const response = await fetch(GRAPHQL_API, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "Authorization": "Bearer " + value
+                        "Authorization": "Bearer " + access_token
                     },
                     body: JSON.stringify({
                         "operationName": "MyActiveEvents",
