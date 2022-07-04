@@ -87,7 +87,6 @@ export const LoginScreen = ({navigation}: {navigation: any}) => {
         setFailedAuth(false)
         await AsyncStorage.setItem("@access_token", json["access_token"]);
         await AsyncStorage.setItem("@refresh_token", json["refresh_token"]);
-        console.log(JSON.stringify(json));
         await AsyncStorage.setItem("@ourPersonaId", json["persona_id"]);
         await AsyncStorage.setItem("@displayName", json["display_name"]);
         navigator.navigate("Events")
@@ -99,7 +98,7 @@ export const LoginScreen = ({navigation}: {navigation: any}) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.titleLabel}>Can I Draw In?</Text>
+      <Text style={styles.titleLabel}>Omniscience</Text>
       <Text style={styles.subtitle}>Enter your Companion App credentials</Text>
       <TextInput style={styles.username} placeholder="Username" onChangeText={(username) => setUsername(username)}/>
       <TextInput style={styles.password} placeholder="Password" secureTextEntry={true} onChangeText={(password) => setPassword(password)}/>
