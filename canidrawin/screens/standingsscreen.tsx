@@ -147,7 +147,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                                     if (team["results"]){
                                         players[team["players"][0]["personaId"]].gameWins += team["results"][0]["wins"]
                                         players[team["players"][0]["personaId"]].gameLosses += team["results"][0]["losses"]
-                                        console.log(team["players"][0]["personaId"], team["results"][0]["wins"], "-", team["results"][0]["losses"])                                                     
+                                        // console.log(team["players"][0]["personaId"], team["results"][0]["wins"], "-", team["results"][0]["losses"])                                                     
                                     }
                                 }
                             } else {
@@ -159,22 +159,48 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                     }
                 }              
 
+                // Gather the pairings in a nice structure (array of personaId string pairs)
+                var pairings: any = [];
+                for (var match of json["data"]["event"]["gameState"]["currentRound"]["matches"]) {
+                    if (match["isBye"]) {
+                        const personaA: string = match["teams"][0]["players"][0]["personaId"]
+                        pairings.push([personaA, "bye"])
+                    } else{
+                        const personaA: string = match["teams"][0]["players"][0]["personaId"]
+                        const personaB: string = match["teams"][1]["players"][0]["personaId"]
+                        pairings.push([personaA, personaB])
+                    }
+                }
+                // Add each new pairing to the others' list of opponents
+                for (var pairing in pairings) {
+                    players[pairings[pairing][0]].opponents.push(pairings[pairing][1])
+                    players[pairings[pairing][1]].opponents.push(pairings[pairing][0])
+                }
+ 
+
+                // Scenario 1: Match win
+
+                // Scenario 2: Draw
+
+                // Scenario 3: Match loss
+
+
                 // Update the display data structure
                 for (let personaId in players) {
-                const player: Player = players[personaId];
-                if (player.isBye === false){
-                    standingsArray.push({
-                        "id": player.personaId, 
-                        "title": player.firstName + " " + player.lastName,
-                        "rank": player.rank,
-                        "matchPoints": player.matchPoints,
-                        "omw": Math.round(player.opponentMatchWinPercent * 1000) / 10, // round display value to 1 decimal point
-                        "ogw": Math.round(player.opponentGameWinPercent * 1000) / 10, // round display value to 1 decimal point
-                        "gwp": Math.round(player.gameWinPercent * 1000) / 10, // round display value to 1 decimal point
+                    const player: Player = players[personaId];
+                    if (player.isBye === false){
+                        standingsArray.push({
+                            "id": player.personaId, 
+                            "title": player.firstName + " " + player.lastName,
+                            "rank": player.rank,
+                            "matchPoints": player.matchPoints,
+                            "omw": Math.round(player.opponentMatchWinPercent * 1000) / 10, // round display value to 1 decimal point
+                            "ogw": Math.round(player.opponentGameWinPercent * 1000) / 10, // round display value to 1 decimal point
+                            "gwp": Math.round(player.gameWinPercent * 1000) / 10, // round display value to 1 decimal point
+                        }
+                        );
                     }
-                    );
                 }
-            }
 
                 setStandingsData(standingsArray);
             } else {
