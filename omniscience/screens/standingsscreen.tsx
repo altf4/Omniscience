@@ -10,6 +10,13 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     const [currentRound, setCurrentRound] = useState(0);
     const [minRounds, setMinRounds] = useState(0);
     const [ourPersonaId, setOurPersonaId] = useState('');
+    // "conversion" rates (ie: chance of top8'ing win win/draw/loss)
+    const [ourConversionRateWin, setOurConversionRateWin] = useState(0);
+    const [ourConversionRateDraw, setOurConversionRateDraw] = useState(0);
+    const [ourConversionRateLoss, setOurConversionRateLoss] = useState(0);
+    const [oppConversionRateWin, setOppConversionRateWin] = useState(0);
+    const [oppConversionRateDraw, setOppConversionRateDraw] = useState(0);
+    const [oppConversionRateLoss, setOppConversionRateLoss] = useState(0);
 
     // Fetches a new access token from our current refresh token
     async function refreshAccess() {
@@ -252,12 +259,9 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         // Just get the top 8
         const top8: Player[] = playersArray.slice(0, 8)
 
-        // console.log("top 8: targetPlayer", targetPlayer);
         for (let index in top8) {
             const player: Player = playersArray[index];
-            // console.log(player.firstName + " " + player.matchPoints + " " + player.wins + "-" + player.losses + "-" + player.draws);
             if (targetPlayer === player.personaId){
-                // console.log("success");
                 return true;
             }
         }
@@ -364,35 +368,75 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                         pairings.push([personaA, personaB])
                     }
                 }
+                var opponentId: string = "";
                 // Add each new pairing to the others' list of opponents
                 for (var pairing in pairings) {
                     players[pairings[pairing][0]].opponents.push(pairings[pairing][1])
                     players[pairings[pairing][1]].opponents.push(pairings[pairing][0])
+                    // While we're at it, find who our opponent is
+                    if (pairings[pairing][0] === personaId) {
+                        opponentId = pairings[pairing][1];
+                    }
+                    if (pairings[pairing][1] === personaId) {
+                        opponentId = pairings[pairing][0];
+                    }
+
                 }
  
                 console.log("ourselves " + personaId);
 
 
                 // Scenario 1: Match win
+                const n = 10;
                 var successes = 0;
-                for (let i = 0; i < 10; i++) { 
+                for (let i = 0; i < n; i++) { 
                     successes += Number(await SimulateRound(players, pairings, personaId, "win"));
                 }
                 console.log("With a win: " + successes);
+                setOurConversionRateWin(100 * (successes / n));
 
                 // Scenario 2: Draw
                 successes = 0;
-                for (let i = 0; i < 10; i++) { 
+                for (let i = 0; i < n; i++) { 
                     successes += Number(await SimulateRound(players, pairings, personaId, "draw"));
                 }
                 console.log("With a draw: " + successes);
+                setOurConversionRateDraw(100 * (successes / n));
 
                 // Scenario 3: Match loss
                 successes = 0;
-                for (let i = 0; i < 10; i++) { 
+                for (let i = 0; i < n; i++) { 
                     successes += Number(await SimulateRound(players, pairings, personaId, "loss"));
                 }
                 console.log("With a loss: " + successes);
+                setOurConversionRateLoss(100 * (successes / n));
+
+                // Find our opponent. Calculate their results too
+
+                // Scenario 1: Match win
+                var successes = 0;
+                for (let i = 0; i < n; i++) { 
+                    successes += Number(await SimulateRound(players, pairings, opponentId, "win"));
+                }
+                console.log("Opponent with a win: " + successes);
+                setOppConversionRateWin(100 * (successes / n));
+
+                // Scenario 2: Draw
+                successes = 0;
+                for (let i = 0; i < n; i++) { 
+                    successes += Number(await SimulateRound(players, pairings, opponentId, "draw"));
+                }
+                console.log("Opponent with a draw: " + successes);
+                setOppConversionRateDraw(100 * (successes / n));
+
+                // Scenario 3: Match loss
+                successes = 0;
+                for (let i = 0; i < n; i++) { 
+                    successes += Number(await SimulateRound(players, pairings, opponentId, "loss"));
+                }
+                console.log("Opponent with a loss: " + successes);
+                setOppConversionRateLoss(100 * (successes / n));                
+
 
                 // Update the display data structure
                 for (let personaId in players) {
@@ -427,6 +471,35 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
           flex: 1,
           backgroundColor: '#fff',
           alignItems: 'center',
+        },
+        standingsContainer: {
+            flex: 2,
+            backgroundColor: '#fff',
+            alignItems: 'center',
+        },
+        simulationsResultsContainer: {
+            flex: 1,
+            backgroundColor: '#fff',
+            alignItems: 'center',
+            flexDirection: "row",
+        },
+        simulationBoxContainerWin: {
+            flex: 1,
+            backgroundColor: '#3aa832',
+            alignItems: 'center',
+            flexDirection: "column",
+        },
+        simulationBoxContainerDraw: {
+            flex: 1,
+            backgroundColor: '#ab7e24',
+            alignItems: 'center',
+            flexDirection: "column",
+        },
+        simulationBoxContainerLoss: {
+            flex: 1,
+            backgroundColor: '#cf2727',
+            alignItems: 'center',
+            flexDirection: "column",
         },
         itemContainer: {
             flex: 1,
@@ -499,17 +572,50 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
 
     return (
         <View style={styles.container}>
-        <Text style={styles.titleLabel}>Round {currentRound} of {minRounds}</Text>
-        <SafeAreaView style={styles.container}>
-            <FlatList
-                data={standingsData}
-                renderItem={renderItem}
-                keyExtractor={item => item.id}
-                extraData={selectedId}
-                ListHeaderComponent={headerItem}
-            />
-        </SafeAreaView>
-
+            <View style={styles.container}>
+                <Text style={styles.titleLabel}>You</Text>
+                <View style={styles.simulationsResultsContainer}>
+                    <View style={styles.simulationBoxContainerWin}>
+                        <Text style={styles.titleLabel}>Win</Text>
+                        <Text style={styles.titleLabel}>{ourConversionRateWin}%</Text>
+                    </View>
+                    <View style={styles.simulationBoxContainerDraw}>
+                        <Text style={styles.titleLabel}>Draw</Text>
+                        <Text style={styles.titleLabel}>{ourConversionRateDraw}%</Text>
+                    </View>
+                    <View style={styles.simulationBoxContainerLoss}>
+                        <Text style={styles.titleLabel}>Loss</Text>
+                        <Text style={styles.titleLabel}>{ourConversionRateLoss}%</Text>
+                    </View>
+                </View>
+                <Text style={styles.titleLabel}>Your Opponent</Text>
+                <View style={styles.simulationsResultsContainer}>
+                <View style={styles.simulationBoxContainerWin}>
+                        <Text style={styles.titleLabel}>Win</Text>
+                        <Text style={styles.titleLabel}>{oppConversionRateWin}%</Text>
+                    </View>
+                    <View style={styles.simulationBoxContainerDraw}>
+                        <Text style={styles.titleLabel}>Draw</Text>
+                        <Text style={styles.titleLabel}>{oppConversionRateDraw}%</Text>
+                    </View>
+                    <View style={styles.simulationBoxContainerLoss}>
+                        <Text style={styles.titleLabel}>Loss</Text>
+                        <Text style={styles.titleLabel}>{oppConversionRateLoss}%</Text>
+                    </View>
+                </View>
+            </View>
+            <View style={styles.standingsContainer}>
+                <Text style={styles.titleLabel}>Round {currentRound} of {minRounds}</Text>
+                <SafeAreaView style={styles.container}>
+                    <FlatList
+                        data={standingsData}
+                        renderItem={renderItem}
+                        keyExtractor={item => item.id}
+                        extraData={selectedId}
+                        ListHeaderComponent={headerItem}
+                    />
+                </SafeAreaView>
+        </View>
       </View>
     );
 }
