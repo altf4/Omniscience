@@ -1,7 +1,8 @@
 import { Button, StyleSheet, Text, TextInput, View, SafeAreaView, TouchableOpacity, FlatList, ViewStyle, TouchableHighlightBase} from 'react-native';
-import React, {useState, useEffect} from 'react';
+import React, {Component, useState, useEffect} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
+import * as Progress from 'react-native-progress';
 
 export function StandingsScreen({route, navigation}: {route: any, navigation: any}) {
     const GRAPHQL_API = "https://api2.tabletop.tiamat-origin.cloud/silverbeak-griffin-service/graphql"
@@ -10,6 +11,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     const [currentRound, setCurrentRound] = useState(0);
     const [minRounds, setMinRounds] = useState(0);
     const [ourPersonaId, setOurPersonaId] = useState('');
+    const [progress, setProgress] = useState(0);
     // "conversion" rates (ie: chance of top8'ing win win/draw/loss)
     const [ourConversionRateWin, setOurConversionRateWin] = useState(0);
     const [ourConversionRateDraw, setOurConversionRateDraw] = useState(0);
@@ -17,6 +19,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     const [oppConversionRateWin, setOppConversionRateWin] = useState(0);
     const [oppConversionRateDraw, setOppConversionRateDraw] = useState(0);
     const [oppConversionRateLoss, setOppConversionRateLoss] = useState(0);
+
 
     // Fetches a new access token from our current refresh token
     async function refreshAccess() {
@@ -124,6 +127,22 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                 } 
                 if (result === "draw") {
                     randomdraw = 0;
+                }
+            } else {
+                // If both players are trivially able to draw in, then always make them do that
+                //  It's called a trivial draw in if both players are three more match points or greater above the current 8th place holder
+                var eighthPlace: string = "";
+                for (let player in players) {
+                    if (players[player].rank === 8){
+                        eighthPlace = player;
+                        break;
+                    }
+                }
+                const cutoffScore: number = players[eighthPlace].matchPoints;
+                if (playerA.matchPoints - 2 > cutoffScore && playerB.matchPoints - 2 > cutoffScore) {
+                    playerA.draws += 1;
+                    playerB.draws += 1;
+                    isBye = true; // Not technically a bye, I guess. But makes us skip the random results logic below
                 }
             }
             
@@ -413,6 +432,9 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                 }
                 console.log("With a win: " + successes);
                 setOurConversionRateWin(Math.round(10000 * (successes / n))  / 100);
+                setProgress(1/6);
+                await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
+                
 
                 // Scenario 2: Draw
                 successes = 0;
@@ -421,6 +443,8 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                 }
                 console.log("With a draw: " + successes);
                 setOurConversionRateDraw(Math.round(10000 * (successes / n))  / 100);
+                setProgress(2/6);
+                await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
 
                 // Scenario 3: Match loss
                 successes = 0;
@@ -429,6 +453,8 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                 }
                 console.log("With a loss: " + successes);
                 setOurConversionRateLoss(Math.round(10000 * (successes / n))  / 100);
+                setProgress(3/6);
+                await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
 
                 // Find our opponent. Calculate their results too
 
@@ -439,6 +465,8 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                 }
                 console.log("Opponent with a win: " + successes);
                 setOppConversionRateWin(Math.round(10000 * (successes / n))  / 100);
+                setProgress(4/6);
+                await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
 
                 // Scenario 2: Draw
                 successes = 0;
@@ -447,6 +475,8 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                 }
                 console.log("Opponent with a draw: " + successes);
                 setOppConversionRateDraw(Math.round(10000 * (successes / n))  / 100);
+                setProgress(5/6);
+                await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
 
                 // Scenario 3: Match loss
                 successes = 0;
@@ -455,6 +485,8 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                 }
                 console.log("Opponent with a loss: " + successes);
                 setOppConversionRateLoss(Math.round(10000 * (successes / n))  / 100);
+                setProgress(6/6);
+                await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
 
             } else {
                 console.log("Error fetching standings")
@@ -576,41 +608,69 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         </View>
     );
     
+    class SimulationResults extends Component {
+        render(){
+            if (progress >= 1){           
+                return (
+                    <View style={styles.container}>
+                    <Text style={styles.titleLabel}>Your Odds:</Text>
+                    <View style={styles.simulationsResultsContainer}>
+                        <View style={styles.simulationBoxContainerWin}>
+                            <Text style={styles.titleLabel}>Win</Text>
+                            <Text style={styles.titleLabel}>{ourConversionRateWin}%</Text>
+                        </View>
+                        <View style={styles.simulationBoxContainerDraw}>
+                            <Text style={styles.titleLabel}>Draw</Text>
+                            <Text style={styles.titleLabel}>{ourConversionRateDraw}%</Text>
+                        </View>
+                        <View style={styles.simulationBoxContainerLoss}>
+                            <Text style={styles.titleLabel}>Loss</Text>
+                            <Text style={styles.titleLabel}>{ourConversionRateLoss}%</Text>
+                        </View>
+                    </View>
+                    <Text style={styles.titleLabel}>Your Opponent's Odds:</Text>
+                    <View style={styles.simulationsResultsContainer}>
+                    <View style={styles.simulationBoxContainerWin}>
+                            <Text style={styles.titleLabel}>Win</Text>
+                            <Text style={styles.titleLabel}>{oppConversionRateWin}%</Text>
+                        </View>
+                        <View style={styles.simulationBoxContainerDraw}>
+                            <Text style={styles.titleLabel}>Draw</Text>
+                            <Text style={styles.titleLabel}>{oppConversionRateDraw}%</Text>
+                        </View>
+                        <View style={styles.simulationBoxContainerLoss}>
+                            <Text style={styles.titleLabel}>Loss</Text>
+                            <Text style={styles.titleLabel}>{oppConversionRateLoss}%</Text>
+                        </View>
+                    </View>
+                </View>              
+                )
+            } else{
+                return (<View></View>);
+            }
+
+        }        
+    };
+
+    class SimulationProgress extends Component {
+        render(){
+            if (progress < 1){  
+                return (
+                    <View style={styles.container}>
+                        <Text style={styles.titleLabel}>Crunching numbers...</Text>
+                        <Progress.Pie progress={progress} size={50} />
+                    </View>
+                );
+            } else {
+                return (<View></View>);
+            }
+        }
+    };
 
     return (
         <View style={styles.container}>
-            <View style={styles.container}>
-                <Text style={styles.titleLabel}>Your Odds:</Text>
-                <View style={styles.simulationsResultsContainer}>
-                    <View style={styles.simulationBoxContainerWin}>
-                        <Text style={styles.titleLabel}>Win</Text>
-                        <Text style={styles.titleLabel}>{ourConversionRateWin}%</Text>
-                    </View>
-                    <View style={styles.simulationBoxContainerDraw}>
-                        <Text style={styles.titleLabel}>Draw</Text>
-                        <Text style={styles.titleLabel}>{ourConversionRateDraw}%</Text>
-                    </View>
-                    <View style={styles.simulationBoxContainerLoss}>
-                        <Text style={styles.titleLabel}>Loss</Text>
-                        <Text style={styles.titleLabel}>{ourConversionRateLoss}%</Text>
-                    </View>
-                </View>
-                <Text style={styles.titleLabel}>Your Opponent's Odds:</Text>
-                <View style={styles.simulationsResultsContainer}>
-                <View style={styles.simulationBoxContainerWin}>
-                        <Text style={styles.titleLabel}>Win</Text>
-                        <Text style={styles.titleLabel}>{oppConversionRateWin}%</Text>
-                    </View>
-                    <View style={styles.simulationBoxContainerDraw}>
-                        <Text style={styles.titleLabel}>Draw</Text>
-                        <Text style={styles.titleLabel}>{oppConversionRateDraw}%</Text>
-                    </View>
-                    <View style={styles.simulationBoxContainerLoss}>
-                        <Text style={styles.titleLabel}>Loss</Text>
-                        <Text style={styles.titleLabel}>{oppConversionRateLoss}%</Text>
-                    </View>
-                </View>
-            </View>
+            <SimulationProgress/>
+            <SimulationResults/>
             <View style={styles.standingsAreaContainer}>
                 <Text style={styles.titleLabel}>Round {currentRound} of {minRounds}</Text>
                 <SafeAreaView style={styles.standingsContainer}>
