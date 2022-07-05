@@ -1,4 +1,4 @@
-import { Button, StyleSheet, Text, TextInput, View, SafeAreaView, TouchableOpacity, FlatList, ViewStyle, TouchableHighlightBase} from 'react-native';
+import { Button, StyleSheet, Text, TextInput, RefreshControl, View, SafeAreaView, TouchableOpacity, FlatList, ViewStyle, TouchableHighlightBase} from 'react-native';
 import React, {Component, useState, useEffect} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
@@ -12,6 +12,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     const [minRounds, setMinRounds] = useState(0);
     const [ourPersonaId, setOurPersonaId] = useState('');
     const [progress, setProgress] = useState(0);
+    const [refreshing, setRefreshing] = useState(false);
     // "conversion" rates (ie: chance of top8'ing win win/draw/loss)
     const [ourConversionRateWin, setOurConversionRateWin] = useState(0);
     const [ourConversionRateDraw, setOurConversionRateDraw] = useState(0);
@@ -49,6 +50,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         }
     }
 
+    // Represents a single player in an event, (can be a "bye" player, doensn't have to be a person)
     class Player {
         wins: number;
         losses: number;
@@ -84,23 +86,34 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
           this.personaId = "";
           this.isBye = false;
         }
-      }
+    }
+
+    // Represents a snapshot of the current state of an event, including player standings and pairings for the current round
+    class GameState {
+        players: {[personaId: string] : Player}
+        pairings: any[]
+
+        constructor() {
+            this.players = {};
+            this.pairings = [];
+        }
+    }
 
     // Returns bool of whether the target player has top8'd the event after simulating the rest of the event
     //  originalPlayers - dict of personaId -> Player
     //  pairings - array of personaId pairs
     //  targetPlayer - personaId of the player to simulate for
     //  result - One of "win", "draw", or "loss"
-    async function SimulateRound(originalPlayers: {[personaId: string] : Player}, pairings: any[], targetPlayer: string, result: string) {
+    async function SimulateRound(gamestate: GameState, targetPlayer: string, result: string) {
         // Make a copy of the players dict since we're going to be mutating it
         var players: {[personaId: string] : Player} = {};
-        for (let player in originalPlayers) {
-            players[player] = {...originalPlayers[player]};
+        for (let player in gamestate.players) {
+            players[player] = {...gamestate.players[player]};
         }
 
-        for (let pairing in pairings) {
-            var playerA: Player = players[pairings[pairing][0]];
-            var playerB: Player = players[pairings[pairing][1]];
+        for (let pairing in gamestate.pairings) {
+            var playerA: Player = players[gamestate.pairings[pairing][0]];
+            var playerB: Player = players[gamestate.pairings[pairing][1]];
 
             var dieroll = Math.random();
             var randomdraw = Math.random();
@@ -111,9 +124,9 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                 // reset the players so Player A is the target
                 playerA = players[targetPlayer];
                 if (pairing[0] === targetPlayer){
-                    playerB = players[pairings[pairing][1]];
+                    playerB = players[gamestate.pairings[pairing][1]];
                 } else {
-                    playerB = players[pairings[pairing][0]];
+                    playerB = players[gamestate.pairings[pairing][0]];
                 }
                 if (result === "win") {
                     // Assume worst case win (2-1)
@@ -149,10 +162,10 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             // If one of the players is "bye", then handle that separately
             if ("bye" === playerA.personaId || "bye" === playerB.personaId) {
                 // Set playerA to the non-bye player
-                if ("bye" === pairings[pairing][0]){
-                    playerA = players[pairings[pairing][1]];
+                if ("bye" === gamestate.pairings[pairing][0]){
+                    playerA = players[gamestate.pairings[pairing][1]];
                 } else {
-                    playerA = players[pairings[pairing][0]];
+                    playerA = players[gamestate.pairings[pairing][0]];
                 }
                 isBye = true;
                 // Byes are considered 2-0 wins, count it now
@@ -287,239 +300,272 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         return false;
     }
 
-    // "OnLoad"
-    useEffect(() => {
-        async function fetchStandings () {
-            // Set our personaId to state
-            const personaId: any = await AsyncStorage.getItem("@ourPersonaId");
-            setOurPersonaId(personaId);
+    // Repeatedly calls SimulateRound to stochastically determine success odds of top 8'ing the event, given last round standings
+    //  n - Number of simulations to run per scenario (total amount run will be 6n)
+    //  players - map of personaId -> Player for every player in the event
+    //  pairings - array of personaId pairs
+    //  targetPlayer - Player we wish to simulate for
+    async function SimulateLastRoundOfEvent(n: number, gamestate: GameState, targetPlayerId: string) {
 
-            // TODO: We refresh at the start here, which maybe is suboptimal. Perhaps we should only refresh on error. But that seems more complex for now
-            if(await refreshAccess() === false) {
-                console.log("Failed to refresh authentication");
-                navigation.navigate("Login");                    
+        // Figure out who the targer player's opponent is
+        var opponentId: string = "";
+        for (let pairing in gamestate.pairings) {
+            if (gamestate.pairings[pairing][0] === targetPlayerId) {
+                opponentId = gamestate.pairings[pairing][1];
             }
-            const access_token = await AsyncStorage.getItem("@access_token");
-            const request: string = "query loadEvent($eventId: ID!) {event(id: $eventId) { ...Event __typename } } fragment Event on Event { __typename id venue { ...Venue __typename } title description format limitedSet rulesEnforcementLevel pairingType entryFee { __typename amount currency } scheduledStartTime actualStartTime estimatedEndTime actualEndTime status capacity numberOfPlayers shortCode tags latitude longitude address timeZone phoneNumber emailAddress startingTableNumber hasTop8 isAdHoc isOnline createdBy requiredTeamSize groupId cardSet { __typename id name releaseDate } eventFormat { ...EventFormat __typename } registeredPlayers { ...Registration __typename } gameState { ...GameState __typename } teams { ...TeamFields __typename } } fragment Venue on Venue { __typename id name latitude longitude address streetAddress city state country postalCode timeZone phoneNumber emailAddress googlePlaceId capacity notes isApproved } fragment EventFormat on EventFormat { __typename id name blurb requiresSetSelection includesDraft includesDeckbuilding wizardsOnly color } fragment Registration on Registration { __typename id status personaId displayName firstName lastName preferredTableNumber } fragment GameState on GameState { __typename id minRounds pods { ...Pod __typename } top8Pods { ...Pod __typename } draftTimerStartTime draftTimerExpirationTime draftEndTime top8DraftTimerStartTime top8DraftTimerExpirationTime top8DraftEndTime constructionTimerStartTime constructionTimerExpirationTime constructionTimeEndTime constructedSeats { ...Seats __typename } currentRoundNumber currentRound { ...Round __typename } rounds { ...Round __typename } standings { ...Standings __typename } drops { ...Drop __typename } nextRoundMeta { ...RoundMetaData __typename } podPairingType draftTimerID  constructDraftTimerID top8DraftTimerID gamesToWin } fragment Pod on Pod { __typename number seats { ...Seats __typename } } fragment Seats on Seat { __typename number personaId displayName firstName lastName team { ...Team __typename } } fragment Team on Team { __typename id cacheId name players { ...User __typename } results { ...Result __typename } } fragment User on User { __typename personaId displayName firstName lastName } fragment Result on TeamResult { __typename draws isPlayoffResult submitter isFinal isTO isBye wins losses teamId } fragment Round on Round { __typename id number isFinalRound isPlayoff isCertified actualStartTime actualEndTime roundTimerExpirationTime matches { ...Match __typename } pairingStrategy canRollback timerID } fragment Match on Match { __typename id cacheId isBye teams { ...Team __typename } leftTeamWins rightTeamWins isLeftTeamDropped isRightTeamDropped tableNumber } fragment Standings on TeamStanding { __typename team { ...Team __typename } rank wins losses draws byes matchPoints gameWinPercent opponentGameWinPercent opponentMatchWinPercent } fragment Drop on Drop { __typename teamId roundNumber } fragment RoundMetaData on RoundMetadata { __typename hasDraft hasDeckConstruction } fragment TeamFields on TeamPayload { __typename id eventId teamCode isLocked isRegistered registrations { ...Registration __typename } reservations { ...Reservation __typename } } fragment Reservation on Registration { __typename status personaId displayName firstName lastName preferredTableNumber }"
-            const load_standings_payload = {
-                "operationName": "loadEvent",
-                "variables": {"eventId": Number(route.params.eventID)},
-                "query": request
+            if (gamestate.pairings[pairing][1] === targetPlayerId) {
+                opponentId = gamestate.pairings[pairing][0];
             }
-            const response = await fetch(GRAPHQL_API, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + access_token
-                },
-                body: JSON.stringify(load_standings_payload),
-            });
-            const json = await response.json();
-            if (response.status == 200) {
-                var standingsArray: any = [];
 
-                var players: {[personaId: string] : Player} = {};
-
-                // Set the round data
-                const min_rounds: number = Number(json["data"]["event"]["gameState"]["minRounds"]);
-                const current_round: number = Number(json["data"]["event"]["gameState"]["currentRoundNumber"]);
-                setMinRounds(min_rounds);
-                setCurrentRound(current_round);
-
-                if (current_round < min_rounds) {
-                    setProgress(1);
-
-                    // TODO Rounds 2-3 here
-
-                    // standingsArray.push({"id": "bye"});
-                    // setStandingsData(standingsArray);
-                } else {
-                    // Build initial players array
-                    for (var team of json["data"]["event"]["gameState"]["standings"]) {
-                        var player = new Player();
-                        player.wins = Number(team["wins"]);
-                        player.losses = Number(team["losses"]);
-                        player.draws = Number(team["draws"]);
-                        player.matchPoints = Number(team["matchPoints"]);
-                        player.gameWinPercent = Number(team["gameWinPercent"]);
-                        player.opponentGameWinPercent = Number(team["opponentGameWinPercent"]);
-                        player.opponentMatchWinPercent = Number(team["opponentMatchWinPercent"]);
-                        player.rank = Number(team["rank"]);
-                        player.firstName = team["team"]["players"][0]["firstName"];
-                        player.lastName = team["team"]["players"][0]["lastName"];
-                        player.personaId = team["team"]["players"][0]["personaId"];
-                        players[player.personaId] = player;
-                        console.log(player.personaId);
-                    }
-
-                    // Add a bye player. (We may need even with an even number of entrants, due to drops)
-                    var bye = new Player();
-                    bye.isBye = true;
-                    players["bye"] = bye;
-
-                    // Go through all past results and calculate game win/loss counts
-                    //      This information is present here in the match history, but not given to us explicitly
-                    const rounds: any[] = json["data"]["event"]["gameState"]["rounds"];
-                    for (var round of rounds) {
-                        if (Number(round["number"]) < rounds.length){
-                            const matches: any[] = round["matches"];
-                            for (var match of matches) {
-                                if (match["isBye"] === false){
-                                    const personaA: string = match["teams"][0]["players"][0]["personaId"];
-                                    const personaB: string = match["teams"][1]["players"][0]["personaId"];
-                                    // Add each other to the opponent list
-                                    players[personaA].opponents.push(personaB);
-                                    players[personaB].opponents.push(personaA);
-                                    for (var team of match["teams"]){
-                                        if (team["results"]){
-                                            players[team["players"][0]["personaId"]].gameWins += team["results"][0]["wins"]
-                                            players[team["players"][0]["personaId"]].gameLosses += team["results"][0]["losses"]
-                                            // console.log(team["players"][0]["personaId"], team["results"][0]["wins"], "-", team["results"][0]["losses"])                                                     
-                                        }
-                                    }
-                                } else {
-                                    // This is a bye
-                                    const personaA: string = match["teams"][0]["players"][0]["personaId"]
-                                    players[personaA].gameWins += 2
-                                }
-                            }
-                        }
-                    }    
-                    
-                    // Update the display data structure
-                    for (let personaId in players) {
-                        const player: Player = players[personaId];
-                        if (player.isBye === false){
-                            standingsArray.push({
-                                "id": player.personaId, 
-                                "title": player.firstName + " " + player.lastName,
-                                "rank": player.rank,
-                                "matchPoints": player.matchPoints,
-                                "omw": Math.round(player.opponentMatchWinPercent * 1000) / 10, // round display value to 1 decimal point
-                                "ogw": Math.round(player.opponentGameWinPercent * 1000) / 10, // round display value to 1 decimal point
-                                "gwp": Math.round(player.gameWinPercent * 1000) / 10, // round display value to 1 decimal point
-                                "personaId": player.personaId,
-                            }
-                            );
-                        }
-                    }
-                    setStandingsData(standingsArray);
-                    await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
-
-                    // Gather the pairings in a nice structure (array of personaId string pairs)
-                    var pairings: any = [];
-                    for (var match of json["data"]["event"]["gameState"]["currentRound"]["matches"]) {
-                        if (match["isBye"]) {
-                            const personaA: string = match["teams"][0]["players"][0]["personaId"]
-                            pairings.push([personaA, "bye"])
-                        } else{
-                            const personaA: string = match["teams"][0]["players"][0]["personaId"]
-                            const personaB: string = match["teams"][1]["players"][0]["personaId"]
-                            pairings.push([personaA, personaB])
-                        }
-                    }
-                    var opponentId: string = "";
-                    // Add each new pairing to the others' list of opponents
-                    for (let pairing in pairings) {
-                        console.log(pairings[pairing][0]);
-                        players[pairings[pairing][0]].opponents.push(pairings[pairing][1])
-                        players[pairings[pairing][1]].opponents.push(pairings[pairing][0])
-                        // While we're at it, find who our opponent is
-                        if (pairings[pairing][0] === personaId) {
-                            opponentId = pairings[pairing][1];
-                        }
-                        if (pairings[pairing][1] === personaId) {
-                            opponentId = pairings[pairing][0];
-                        }
-
-                    }
-    
-                    console.log("ourselves " + personaId);
-
-
-                    // Scenario 1: Match win
-                    const n = 1000;
-                    var successes = 0;
-                    for (let i = 0; i < n; i++) { 
-                        successes += Number(await SimulateRound(players, pairings, personaId, "win"));
-                    }
-                    console.log("With a win: " + successes);
-                    setOurConversionRateWin(Math.round(10000 * (successes / n))  / 100);
-                    setProgress(1/6);
-                    await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
-                    
-
-                    // Scenario 2: Draw
-                    successes = 0;
-                    for (let i = 0; i < n; i++) { 
-                        successes += Number(await SimulateRound(players, pairings, personaId, "draw"));
-                    }
-                    console.log("With a draw: " + successes);
-                    setOurConversionRateDraw(Math.round(10000 * (successes / n))  / 100);
-                    setProgress(2/6);
-                    await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
-
-                    // Scenario 3: Match loss
-                    successes = 0;
-                    for (let i = 0; i < n; i++) { 
-                        successes += Number(await SimulateRound(players, pairings, personaId, "loss"));
-                    }
-                    console.log("With a loss: " + successes);
-                    setOurConversionRateLoss(Math.round(10000 * (successes / n))  / 100);
-                    setProgress(3/6);
-                    await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
-
-                    // Find our opponent. Calculate their results too
-
-                    // Scenario 1: Match win
-                    var successes = 0;
-                    for (let i = 0; i < n; i++) { 
-                        successes += Number(await SimulateRound(players, pairings, opponentId, "win"));
-                    }
-                    console.log("Opponent with a win: " + successes);
-                    setOppConversionRateWin(Math.round(10000 * (successes / n))  / 100);
-                    setProgress(4/6);
-                    await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
-
-                    // Scenario 2: Draw
-                    successes = 0;
-                    for (let i = 0; i < n; i++) { 
-                        successes += Number(await SimulateRound(players, pairings, opponentId, "draw"));
-                    }
-                    console.log("Opponent with a draw: " + successes);
-                    setOppConversionRateDraw(Math.round(10000 * (successes / n))  / 100);
-                    setProgress(5/6);
-                    await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
-
-                    // Scenario 3: Match loss
-                    successes = 0;
-                    for (let i = 0; i < n; i++) { 
-                        successes += Number(await SimulateRound(players, pairings, opponentId, "loss"));
-                    }
-                    console.log("Opponent with a loss: " + successes);
-                    setOppConversionRateLoss(Math.round(10000 * (successes / n))  / 100);
-                    setProgress(6/6);
-                    await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
-                }
-
-            } else {
-                console.log("Error fetching standings")
-            }
         }
 
-        fetchStandings();
+        // Scenario 1: Match win
+        var successes = 0;
+        for (let i = 0; i < n; i++) { 
+            successes += Number(await SimulateRound(gamestate, targetPlayerId, "win"));
+        }
+        console.log("With a win: " + successes);
+        setOurConversionRateWin(Math.round(10000 * (successes / n))  / 100);
+        setProgress(1/6);
+        await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
+        
+
+        // Scenario 2: Draw
+        successes = 0;
+        for (let i = 0; i < n; i++) { 
+            successes += Number(await SimulateRound(gamestate, targetPlayerId, "draw"));
+        }
+        console.log("With a draw: " + successes);
+        setOurConversionRateDraw(Math.round(10000 * (successes / n))  / 100);
+        setProgress(2/6);
+        await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
+
+        // Scenario 3: Match loss
+        successes = 0;
+        for (let i = 0; i < n; i++) { 
+            successes += Number(await SimulateRound(gamestate, targetPlayerId, "loss"));
+        }
+        console.log("With a loss: " + successes);
+        setOurConversionRateLoss(Math.round(10000 * (successes / n))  / 100);
+        setProgress(3/6);
+        await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
+
+        // Find our opponent. Calculate their results too
+
+        // Scenario 1: Match win
+        var successes = 0;
+        for (let i = 0; i < n; i++) { 
+            successes += Number(await SimulateRound(gamestate, targetPlayerId, "win"));
+        }
+        console.log("Opponent with a win: " + successes);
+        setOppConversionRateWin(Math.round(10000 * (successes / n))  / 100);
+        setProgress(4/6);
+        await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
+
+        // Scenario 2: Draw
+        successes = 0;
+        for (let i = 0; i < n; i++) { 
+            successes += Number(await SimulateRound(gamestate, opponentId, "draw"));
+        }
+        console.log("Opponent with a draw: " + successes);
+        setOppConversionRateDraw(Math.round(10000 * (successes / n))  / 100);
+        setProgress(5/6);
+        await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
+
+        // Scenario 3: Match loss
+        successes = 0;
+        for (let i = 0; i < n; i++) { 
+            successes += Number(await SimulateRound(gamestate, opponentId, "loss"));
+        }
+        console.log("Opponent with a loss: " + successes);
+        setOppConversionRateLoss(Math.round(10000 * (successes / n))  / 100);
+        setProgress(6/6);
+        await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
+    }
+
+    // Reach out to remote server and return a GameState object with the latest data
+    async function fetchGameState (): Promise<GameState> {
+        // Set our personaId to state
+        const personaId: any = await AsyncStorage.getItem("@ourPersonaId");
+        setOurPersonaId(personaId);
+
+        // TODO: We refresh at the start here, which maybe is suboptimal. Perhaps we should only refresh on error. But that seems more complex for now
+        if(await refreshAccess() === false) {
+            console.log("Failed to refresh authentication");
+            navigation.navigate("Login");                    
+        }
+        const access_token = await AsyncStorage.getItem("@access_token");
+        const request: string = "query loadEvent($eventId: ID!) {event(id: $eventId) { ...Event __typename } } fragment Event on Event { __typename id venue { ...Venue __typename } title description format limitedSet rulesEnforcementLevel pairingType entryFee { __typename amount currency } scheduledStartTime actualStartTime estimatedEndTime actualEndTime status capacity numberOfPlayers shortCode tags latitude longitude address timeZone phoneNumber emailAddress startingTableNumber hasTop8 isAdHoc isOnline createdBy requiredTeamSize groupId cardSet { __typename id name releaseDate } eventFormat { ...EventFormat __typename } registeredPlayers { ...Registration __typename } gameState { ...GameState __typename } teams { ...TeamFields __typename } } fragment Venue on Venue { __typename id name latitude longitude address streetAddress city state country postalCode timeZone phoneNumber emailAddress googlePlaceId capacity notes isApproved } fragment EventFormat on EventFormat { __typename id name blurb requiresSetSelection includesDraft includesDeckbuilding wizardsOnly color } fragment Registration on Registration { __typename id status personaId displayName firstName lastName preferredTableNumber } fragment GameState on GameState { __typename id minRounds pods { ...Pod __typename } top8Pods { ...Pod __typename } draftTimerStartTime draftTimerExpirationTime draftEndTime top8DraftTimerStartTime top8DraftTimerExpirationTime top8DraftEndTime constructionTimerStartTime constructionTimerExpirationTime constructionTimeEndTime constructedSeats { ...Seats __typename } currentRoundNumber currentRound { ...Round __typename } rounds { ...Round __typename } standings { ...Standings __typename } drops { ...Drop __typename } nextRoundMeta { ...RoundMetaData __typename } podPairingType draftTimerID  constructDraftTimerID top8DraftTimerID gamesToWin } fragment Pod on Pod { __typename number seats { ...Seats __typename } } fragment Seats on Seat { __typename number personaId displayName firstName lastName team { ...Team __typename } } fragment Team on Team { __typename id cacheId name players { ...User __typename } results { ...Result __typename } } fragment User on User { __typename personaId displayName firstName lastName } fragment Result on TeamResult { __typename draws isPlayoffResult submitter isFinal isTO isBye wins losses teamId } fragment Round on Round { __typename id number isFinalRound isPlayoff isCertified actualStartTime actualEndTime roundTimerExpirationTime matches { ...Match __typename } pairingStrategy canRollback timerID } fragment Match on Match { __typename id cacheId isBye teams { ...Team __typename } leftTeamWins rightTeamWins isLeftTeamDropped isRightTeamDropped tableNumber } fragment Standings on TeamStanding { __typename team { ...Team __typename } rank wins losses draws byes matchPoints gameWinPercent opponentGameWinPercent opponentMatchWinPercent } fragment Drop on Drop { __typename teamId roundNumber } fragment RoundMetaData on RoundMetadata { __typename hasDraft hasDeckConstruction } fragment TeamFields on TeamPayload { __typename id eventId teamCode isLocked isRegistered registrations { ...Registration __typename } reservations { ...Reservation __typename } } fragment Reservation on Registration { __typename status personaId displayName firstName lastName preferredTableNumber }"
+        const load_standings_payload = {
+            "operationName": "loadEvent",
+            "variables": {"eventId": Number(route.params.eventID)},
+            "query": request
+        }
+        const response = await fetch(GRAPHQL_API, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + access_token
+            },
+            body: JSON.stringify(load_standings_payload),
+        });
+        const json = await response.json();
+        if (response.status == 200) {
+            var standingsArray: any = [];
+
+            var players: {[personaId: string] : Player} = {};
+
+            // Set the round data
+            const min_rounds: number = Number(json["data"]["event"]["gameState"]["minRounds"]);
+            const current_round: number = Number(json["data"]["event"]["gameState"]["currentRoundNumber"]);
+            setMinRounds(min_rounds);
+            setCurrentRound(current_round);
+
+            if (current_round < min_rounds) {
+                setProgress(1);
+
+                // TODO Rounds 2-3 here
+
+                // standingsArray.push({"id": "bye"});
+                // setStandingsData(standingsArray);
+            } else {
+                // Build initial players array
+                for (var team of json["data"]["event"]["gameState"]["standings"]) {
+                    var player = new Player();
+                    player.wins = Number(team["wins"]);
+                    player.losses = Number(team["losses"]);
+                    player.draws = Number(team["draws"]);
+                    player.matchPoints = Number(team["matchPoints"]);
+                    player.gameWinPercent = Number(team["gameWinPercent"]);
+                    player.opponentGameWinPercent = Number(team["opponentGameWinPercent"]);
+                    player.opponentMatchWinPercent = Number(team["opponentMatchWinPercent"]);
+                    player.rank = Number(team["rank"]);
+                    player.firstName = team["team"]["players"][0]["firstName"];
+                    player.lastName = team["team"]["players"][0]["lastName"];
+                    player.personaId = team["team"]["players"][0]["personaId"];
+                    players[player.personaId] = player;
+                    console.log(player.personaId);
+                }
+
+                // Add a bye player. (We may need even with an even number of entrants, due to drops)
+                var bye = new Player();
+                bye.isBye = true;
+                players["bye"] = bye;
+
+                // Go through all past results and calculate game win/loss counts
+                //      This information is present here in the match history, but not given to us explicitly
+                const rounds: any[] = json["data"]["event"]["gameState"]["rounds"];
+                for (var round of rounds) {
+                    if (Number(round["number"]) < rounds.length){
+                        const matches: any[] = round["matches"];
+                        for (var match of matches) {
+                            if (match["isBye"] === false){
+                                const personaA: string = match["teams"][0]["players"][0]["personaId"];
+                                const personaB: string = match["teams"][1]["players"][0]["personaId"];
+                                // Add each other to the opponent list
+                                players[personaA].opponents.push(personaB);
+                                players[personaB].opponents.push(personaA);
+                                for (var team of match["teams"]){
+                                    if (team["results"]){
+                                        players[team["players"][0]["personaId"]].gameWins += team["results"][0]["wins"]
+                                        players[team["players"][0]["personaId"]].gameLosses += team["results"][0]["losses"]
+                                        // console.log(team["players"][0]["personaId"], team["results"][0]["wins"], "-", team["results"][0]["losses"])                                                     
+                                    }
+                                }
+                            } else {
+                                // This is a bye
+                                const personaA: string = match["teams"][0]["players"][0]["personaId"]
+                                players[personaA].gameWins += 2
+                            }
+                        }
+                    }
+                }    
+                
+                // Update the display data structure
+                for (let personaId in players) {
+                    const player: Player = players[personaId];
+                    if (player.isBye === false){
+                        standingsArray.push({
+                            "id": player.personaId, 
+                            "title": player.firstName + " " + player.lastName,
+                            "rank": player.rank,
+                            "matchPoints": player.matchPoints,
+                            "omw": Math.round(player.opponentMatchWinPercent * 1000) / 10, // round display value to 1 decimal point
+                            "ogw": Math.round(player.opponentGameWinPercent * 1000) / 10, // round display value to 1 decimal point
+                            "gwp": Math.round(player.gameWinPercent * 1000) / 10, // round display value to 1 decimal point
+                            "personaId": player.personaId,
+                        }
+                        );
+                    }
+                }
+                setStandingsData(standingsArray);
+                await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
+
+                // Gather the pairings in a nice structure (array of personaId string pairs)
+                var pairings: any = [];
+                for (var match of json["data"]["event"]["gameState"]["currentRound"]["matches"]) {
+                    if (match["isBye"]) {
+                        const personaA: string = match["teams"][0]["players"][0]["personaId"]
+                        pairings.push([personaA, "bye"])
+                    } else{
+                        const personaA: string = match["teams"][0]["players"][0]["personaId"]
+                        const personaB: string = match["teams"][1]["players"][0]["personaId"]
+                        pairings.push([personaA, personaB])
+                    }
+                }
+                var opponentId: string = "";
+                // Add each new pairing to the others' list of opponents
+                for (let pairing in pairings) {
+                    console.log(pairings[pairing][0]);
+                    players[pairings[pairing][0]].opponents.push(pairings[pairing][1])
+                    players[pairings[pairing][1]].opponents.push(pairings[pairing][0])
+                    // While we're at it, find who our opponent is
+                    if (pairings[pairing][0] === personaId) {
+                        opponentId = pairings[pairing][1];
+                    }
+                    if (pairings[pairing][1] === personaId) {
+                        opponentId = pairings[pairing][0];
+                    }
+
+                }
+
+                console.log("ourselves " + personaId);
+
+                var gamestate: GameState = new GameState();
+                gamestate.players = players;
+                gamestate.pairings = pairings;
+                return gamestate;
+            }
+
+        } else {
+            console.log("Error fetching GameState")
+            throw new Error("Failed to fetch GameState");
+        }
+        throw new Error("We shouldn't be able to get here.");
+    }
+
+    // "OnLoad"
+    useEffect(() => {
+        async function doSimulations() {
+            var gamestate: GameState = await fetchGameState();
+            const personaId: any = await AsyncStorage.getItem("@ourPersonaId");
+            // Run the simulations
+            SimulateLastRoundOfEvent(1000, gamestate, personaId);
+        }
+
+        doSimulations();
 
     }, []);
 
     const styles = StyleSheet.create({
         container: {
           flex: 1,
-          backgroundColor: '#fff',
+          backgroundColor: '#ffffff',
           alignItems: 'center',
         },
         standingsAreaContainer: {
             flex: 2,
-            backgroundColor: '#fff',
+            backgroundColor: '#ffffff',
             alignItems: 'center',
         },
         standingsContainer: {
@@ -530,7 +576,13 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         },        
         simulationsResultsContainer: {
             flex: 1,
-            backgroundColor: '#fff',
+            backgroundColor: '#ffffff',
+            alignItems: 'center',
+            flexDirection: "row",
+        },
+        simulationsResultsAreaContainer: {
+            flex: 1,
+            backgroundColor: '#ffffff',
             alignItems: 'center',
             flexDirection: "row",
         },
@@ -575,7 +627,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             flex: 1,
         },        
         item: {
-            flex: 0.5,
+            flex: 1,
             fontSize: 20,
         },
     });
@@ -622,43 +674,61 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         </View>
     );
     
+    const wait = (timeout: number) => {
+        return new Promise(resolve => setTimeout(resolve, timeout));
+    }
+    async function onRefresh() {
+        setRefreshing(true);
+        setProgress(0);
+        var gamestate: GameState = await fetchGameState();
+        // Run the simulations
+        const personaId: any = await AsyncStorage.getItem("@ourPersonaId");
+        SimulateLastRoundOfEvent(1000, gamestate, personaId);
+        setProgress(1);
+        wait(1000).then(() => setRefreshing(false));
+    };
+
     class SimulationResultsArea extends Component {
         render(){
             if (progress >= 1){     
                 if (currentRound === minRounds){
                     return (
-                        <View style={styles.container}>
-                            <Text style={styles.titleLabel}>Your Odds:</Text>
-                            <View style={styles.simulationsResultsContainer}>
-                                <View style={styles.simulationBoxContainerWin}>
-                                    <Text style={styles.titleLabel}>Win</Text>
-                                    <Text style={styles.titleLabel}>{ourConversionRateWin}%</Text>
-                                </View>
-                                <View style={styles.simulationBoxContainerDraw}>
-                                    <Text style={styles.titleLabel}>Draw</Text>
-                                    <Text style={styles.titleLabel}>{ourConversionRateDraw}%</Text>
-                                </View>
-                                <View style={styles.simulationBoxContainerLoss}>
-                                    <Text style={styles.titleLabel}>Loss</Text>
-                                    <Text style={styles.titleLabel}>{ourConversionRateLoss}%</Text>
-                                </View>
-                            </View>
-                            <Text style={styles.titleLabel}>Your Opponent's Odds:</Text>
-                            <View style={styles.simulationsResultsContainer}>
-                            <View style={styles.simulationBoxContainerWin}>
-                                    <Text style={styles.titleLabel}>Win</Text>
-                                    <Text style={styles.titleLabel}>{oppConversionRateWin}%</Text>
-                                </View>
-                                <View style={styles.simulationBoxContainerDraw}>
-                                    <Text style={styles.titleLabel}>Draw</Text>
-                                    <Text style={styles.titleLabel}>{oppConversionRateDraw}%</Text>
-                                </View>
-                                <View style={styles.simulationBoxContainerLoss}>
-                                    <Text style={styles.titleLabel}>Loss</Text>
-                                    <Text style={styles.titleLabel}>{oppConversionRateLoss}%</Text>
-                                </View>
-                            </View>
-                        </View>              
+                        <View style={styles.simulationsResultsAreaContainer}>
+                            <RefreshControl refreshing={refreshing} onRefresh={onRefresh}>
+                                <View style={styles.container}>
+                                    <Text style={styles.titleLabel}>Your Odds:</Text>
+                                    <View style={styles.simulationsResultsContainer}>
+                                        <View style={styles.simulationBoxContainerWin}>
+                                            <Text style={styles.titleLabel}>Win</Text>
+                                            <Text style={styles.titleLabel}>{ourConversionRateWin}%</Text>
+                                        </View>
+                                        <View style={styles.simulationBoxContainerDraw}>
+                                            <Text style={styles.titleLabel}>Draw</Text>
+                                            <Text style={styles.titleLabel}>{ourConversionRateDraw}%</Text>
+                                        </View>
+                                        <View style={styles.simulationBoxContainerLoss}>
+                                            <Text style={styles.titleLabel}>Loss</Text>
+                                            <Text style={styles.titleLabel}>{ourConversionRateLoss}%</Text>
+                                        </View>
+                                    </View>
+                                    <Text style={styles.titleLabel}>Your Opponent's Odds:</Text>
+                                    <View style={styles.simulationsResultsContainer}>
+                                        <View style={styles.simulationBoxContainerWin}>
+                                            <Text style={styles.titleLabel}>Win</Text>
+                                            <Text style={styles.titleLabel}>{oppConversionRateWin}%</Text>
+                                        </View>
+                                        <View style={styles.simulationBoxContainerDraw}>
+                                            <Text style={styles.titleLabel}>Draw</Text>
+                                            <Text style={styles.titleLabel}>{oppConversionRateDraw}%</Text>
+                                        </View>
+                                        <View style={styles.simulationBoxContainerLoss}>
+                                            <Text style={styles.titleLabel}>Loss</Text>
+                                            <Text style={styles.titleLabel}>{oppConversionRateLoss}%</Text>
+                                        </View>
+                                    </View>
+                                </View>      
+                            </RefreshControl>        
+                        </View>
                     )
                 } else if (currentRound === 1) {
                     return (
@@ -668,9 +738,11 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                     )
                 } else {
                     return (
-                        <View style={styles.container}>
-                            <Text style={styles.titleLabel}>If you were to win out you'd make top 8:...</Text>
-                        </View>
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh}>
+                            <View style={styles.container}>
+                                <Text style={styles.titleLabel}>If you were to win out you'd make top 8:...</Text>
+                            </View>
+                        </RefreshControl>
                     )
                 }
 

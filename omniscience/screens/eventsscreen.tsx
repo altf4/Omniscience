@@ -1,4 +1,4 @@
-import { Button, StyleSheet, Text, TextInput, View, SafeAreaView, TouchableOpacity, FlatList, ViewStyle} from 'react-native';
+import { Button, StyleSheet, Text, TextInput, RefreshControl, View, SafeAreaView, TouchableOpacity, FlatList, ViewStyle} from 'react-native';
 import React, {useState, useEffect} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -7,6 +7,7 @@ export const EventsScreen = ({navigation}: {navigation: any}) => {
     const [selectedId, setSelectedId] = useState(null);
     const [eventData, setEventData] = useState([]);
     const [displayName, setDisplayName] = useState('');
+    const [refreshing, setRefreshing] = useState(false);
 
     const GRAPHQL_API = "https://api2.tabletop.tiamat-origin.cloud/silverbeak-griffin-service/graphql"
 
@@ -116,6 +117,14 @@ export const EventsScreen = ({navigation}: {navigation: any}) => {
     });
 
 
+    const wait = (timeout: number) => {
+        return new Promise(resolve => setTimeout(resolve, timeout));
+    }
+    const onRefresh = React.useCallback(() => {
+        setRefreshing(true);
+        wait(2000).then(() => setRefreshing(false));
+    }, []);
+
     const Item = ({ title, onPress, backgroundColor, textColor }: {title: string, onPress: any, backgroundColor: any, textColor: any}) => (
         <TouchableOpacity onPress={onPress} style={[styles.item, backgroundColor]}>
           <Text style={[styles.title, textColor]}>{title}</Text>
@@ -132,17 +141,19 @@ export const EventsScreen = ({navigation}: {navigation: any}) => {
     );
 
     return (
-        <View style={styles.container}>
-        <Text style={styles.welcome}>Welcome {displayName}</Text>
-        <Text style={styles.titleLabel}>Select Event:</Text>
-        <SafeAreaView style={styles.container}>
-            <FlatList
-                data={eventData}
-                renderItem={renderItem}
-                keyExtractor={item => item.id}
-                extraData={selectedId}
-            />
-        </SafeAreaView>
-      </View>
+            <View style={styles.container}>
+            <Text style={styles.welcome}>Welcome {displayName}</Text>
+            <Text style={styles.titleLabel}>Select Event:</Text>
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh}>
+                <SafeAreaView style={styles.container}>
+                    <FlatList
+                        data={eventData}
+                        renderItem={renderItem}
+                        keyExtractor={item => item.id}
+                        extraData={selectedId}
+                    />
+                </SafeAreaView>
+            </RefreshControl>
+        </View>
     );
 }
