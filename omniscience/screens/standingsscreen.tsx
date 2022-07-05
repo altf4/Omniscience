@@ -354,7 +354,26 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                             }
                         }
                     }
-                }              
+                }    
+                
+                // Update the display data structure
+                for (let personaId in players) {
+                    const player: Player = players[personaId];
+                    if (player.isBye === false){
+                        standingsArray.push({
+                            "id": player.personaId, 
+                            "title": player.firstName + " " + player.lastName,
+                            "rank": player.rank,
+                            "matchPoints": player.matchPoints,
+                            "omw": Math.round(player.opponentMatchWinPercent * 1000) / 10, // round display value to 1 decimal point
+                            "ogw": Math.round(player.opponentGameWinPercent * 1000) / 10, // round display value to 1 decimal point
+                            "gwp": Math.round(player.gameWinPercent * 1000) / 10, // round display value to 1 decimal point
+                            "personaId": player.personaId,
+                        }
+                        );
+                    }
+                }
+                setStandingsData(standingsArray);
 
                 // Gather the pairings in a nice structure (array of personaId string pairs)
                 var pairings: any = [];
@@ -387,13 +406,13 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
 
 
                 // Scenario 1: Match win
-                const n = 10;
+                const n = 1000;
                 var successes = 0;
                 for (let i = 0; i < n; i++) { 
                     successes += Number(await SimulateRound(players, pairings, personaId, "win"));
                 }
                 console.log("With a win: " + successes);
-                setOurConversionRateWin(100 * (successes / n));
+                setOurConversionRateWin(Math.round(10000 * (successes / n))  / 100);
 
                 // Scenario 2: Draw
                 successes = 0;
@@ -401,7 +420,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                     successes += Number(await SimulateRound(players, pairings, personaId, "draw"));
                 }
                 console.log("With a draw: " + successes);
-                setOurConversionRateDraw(100 * (successes / n));
+                setOurConversionRateDraw(Math.round(10000 * (successes / n))  / 100);
 
                 // Scenario 3: Match loss
                 successes = 0;
@@ -409,7 +428,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                     successes += Number(await SimulateRound(players, pairings, personaId, "loss"));
                 }
                 console.log("With a loss: " + successes);
-                setOurConversionRateLoss(100 * (successes / n));
+                setOurConversionRateLoss(Math.round(10000 * (successes / n))  / 100);
 
                 // Find our opponent. Calculate their results too
 
@@ -419,7 +438,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                     successes += Number(await SimulateRound(players, pairings, opponentId, "win"));
                 }
                 console.log("Opponent with a win: " + successes);
-                setOppConversionRateWin(100 * (successes / n));
+                setOppConversionRateWin(Math.round(10000 * (successes / n))  / 100);
 
                 // Scenario 2: Draw
                 successes = 0;
@@ -427,7 +446,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                     successes += Number(await SimulateRound(players, pairings, opponentId, "draw"));
                 }
                 console.log("Opponent with a draw: " + successes);
-                setOppConversionRateDraw(100 * (successes / n));
+                setOppConversionRateDraw(Math.round(10000 * (successes / n))  / 100);
 
                 // Scenario 3: Match loss
                 successes = 0;
@@ -435,28 +454,8 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                     successes += Number(await SimulateRound(players, pairings, opponentId, "loss"));
                 }
                 console.log("Opponent with a loss: " + successes);
-                setOppConversionRateLoss(100 * (successes / n));                
+                setOppConversionRateLoss(Math.round(10000 * (successes / n))  / 100);
 
-
-                // Update the display data structure
-                for (let personaId in players) {
-                    const player: Player = players[personaId];
-                    if (player.isBye === false){
-                        standingsArray.push({
-                            "id": player.personaId, 
-                            "title": player.firstName + " " + player.lastName,
-                            "rank": player.rank,
-                            "matchPoints": player.matchPoints,
-                            "omw": Math.round(player.opponentMatchWinPercent * 1000) / 10, // round display value to 1 decimal point
-                            "ogw": Math.round(player.opponentGameWinPercent * 1000) / 10, // round display value to 1 decimal point
-                            "gwp": Math.round(player.gameWinPercent * 1000) / 10, // round display value to 1 decimal point
-                            "personaId": player.personaId,
-                        }
-                        );
-                    }
-                }
-
-                setStandingsData(standingsArray);
             } else {
                 console.log("Error fetching standings")
             }
@@ -472,11 +471,17 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
           backgroundColor: '#fff',
           alignItems: 'center',
         },
-        standingsContainer: {
+        standingsAreaContainer: {
             flex: 2,
             backgroundColor: '#fff',
             alignItems: 'center',
         },
+        standingsContainer: {
+            flex: 1,
+            backgroundColor: '#ffffff',
+            alignItems: 'center',
+            flexDirection: "row",
+        },        
         simulationsResultsContainer: {
             flex: 1,
             backgroundColor: '#fff',
@@ -519,7 +524,9 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
           fontWeight: 'bold',
         },
         headerItem: {
-            fontSize: 20,
+            fontSize: 16,
+            fontWeight: 'bold',
+            flex: 1,
         },        
         item: {
             flex: 0.5,
@@ -573,7 +580,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     return (
         <View style={styles.container}>
             <View style={styles.container}>
-                <Text style={styles.titleLabel}>You</Text>
+                <Text style={styles.titleLabel}>Your Odds:</Text>
                 <View style={styles.simulationsResultsContainer}>
                     <View style={styles.simulationBoxContainerWin}>
                         <Text style={styles.titleLabel}>Win</Text>
@@ -588,7 +595,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                         <Text style={styles.titleLabel}>{ourConversionRateLoss}%</Text>
                     </View>
                 </View>
-                <Text style={styles.titleLabel}>Your Opponent</Text>
+                <Text style={styles.titleLabel}>Your Opponent's Odds:</Text>
                 <View style={styles.simulationsResultsContainer}>
                 <View style={styles.simulationBoxContainerWin}>
                         <Text style={styles.titleLabel}>Win</Text>
@@ -604,9 +611,9 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                     </View>
                 </View>
             </View>
-            <View style={styles.standingsContainer}>
+            <View style={styles.standingsAreaContainer}>
                 <Text style={styles.titleLabel}>Round {currentRound} of {minRounds}</Text>
-                <SafeAreaView style={styles.container}>
+                <SafeAreaView style={styles.standingsContainer}>
                     <FlatList
                         data={standingsData}
                         renderItem={renderItem}
