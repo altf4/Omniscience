@@ -320,174 +320,187 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
 
                 var players: {[personaId: string] : Player} = {};
 
-                // Build initial players array
-                for (var team of json["data"]["event"]["gameState"]["standings"]) {
-                    var player = new Player();
-                    player.wins = Number(team["wins"]);
-                    player.losses = Number(team["losses"]);
-                    player.draws = Number(team["draws"]);
-                    player.matchPoints = Number(team["matchPoints"]);
-                    player.gameWinPercent = Number(team["gameWinPercent"]);
-                    player.opponentGameWinPercent = Number(team["opponentGameWinPercent"]);
-                    player.opponentMatchWinPercent = Number(team["opponentMatchWinPercent"]);
-                    player.rank = Number(team["rank"]);
-                    player.firstName = team["team"]["players"][0]["firstName"];
-                    player.lastName = team["team"]["players"][0]["lastName"];
-                    player.personaId = team["team"]["players"][0]["personaId"];
-                    players[player.personaId] = player;
-                }
-
-                // Add a bye player. (We may need even with an even number of entrants, due to drops)
-                var bye = new Player();
-                bye.isBye = true;
-                players["bye"] = bye;
-
                 // Set the round data
-                setMinRounds(Number(json["data"]["event"]["gameState"]["minRounds"]))
-                setCurrentRound(Number(json["data"]["event"]["gameState"]["currentRoundNumber"]))
+                const min_rounds: number = Number(json["data"]["event"]["gameState"]["minRounds"]);
+                const current_round: number = Number(json["data"]["event"]["gameState"]["currentRoundNumber"]);
+                setMinRounds(min_rounds);
+                setCurrentRound(current_round);
 
-                // Go through all past results and calculate game win/loss counts
-                //      This information is present here in the match history, but not given to us explicitly
-                const rounds: any[] = json["data"]["event"]["gameState"]["rounds"];
-                for (var round of rounds) {
-                    if (Number(round["number"]) < rounds.length){
-                        const matches: any[] = round["matches"];
-                        for (var match of matches) {
-                            if (match["isBye"] === false){
-                                const personaA: string = match["teams"][0]["players"][0]["personaId"];
-                                const personaB: string = match["teams"][1]["players"][0]["personaId"];
-                                // Add each other to the opponent list
-                                players[personaA].opponents.push(personaB);
-                                players[personaB].opponents.push(personaA);
-                                for (var team of match["teams"]){
-                                    if (team["results"]){
-                                        players[team["players"][0]["personaId"]].gameWins += team["results"][0]["wins"]
-                                        players[team["players"][0]["personaId"]].gameLosses += team["results"][0]["losses"]
-                                        // console.log(team["players"][0]["personaId"], team["results"][0]["wins"], "-", team["results"][0]["losses"])                                                     
+                if (current_round < min_rounds) {
+                    setProgress(1);
+
+                    // TODO Rounds 2-3 here
+
+                    // standingsArray.push({"id": "bye"});
+                    // setStandingsData(standingsArray);
+                } else {
+                    // Build initial players array
+                    for (var team of json["data"]["event"]["gameState"]["standings"]) {
+                        var player = new Player();
+                        player.wins = Number(team["wins"]);
+                        player.losses = Number(team["losses"]);
+                        player.draws = Number(team["draws"]);
+                        player.matchPoints = Number(team["matchPoints"]);
+                        player.gameWinPercent = Number(team["gameWinPercent"]);
+                        player.opponentGameWinPercent = Number(team["opponentGameWinPercent"]);
+                        player.opponentMatchWinPercent = Number(team["opponentMatchWinPercent"]);
+                        player.rank = Number(team["rank"]);
+                        player.firstName = team["team"]["players"][0]["firstName"];
+                        player.lastName = team["team"]["players"][0]["lastName"];
+                        player.personaId = team["team"]["players"][0]["personaId"];
+                        players[player.personaId] = player;
+                        console.log(player.personaId);
+                    }
+
+                    // Add a bye player. (We may need even with an even number of entrants, due to drops)
+                    var bye = new Player();
+                    bye.isBye = true;
+                    players["bye"] = bye;
+
+                    // Go through all past results and calculate game win/loss counts
+                    //      This information is present here in the match history, but not given to us explicitly
+                    const rounds: any[] = json["data"]["event"]["gameState"]["rounds"];
+                    for (var round of rounds) {
+                        if (Number(round["number"]) < rounds.length){
+                            const matches: any[] = round["matches"];
+                            for (var match of matches) {
+                                if (match["isBye"] === false){
+                                    const personaA: string = match["teams"][0]["players"][0]["personaId"];
+                                    const personaB: string = match["teams"][1]["players"][0]["personaId"];
+                                    // Add each other to the opponent list
+                                    players[personaA].opponents.push(personaB);
+                                    players[personaB].opponents.push(personaA);
+                                    for (var team of match["teams"]){
+                                        if (team["results"]){
+                                            players[team["players"][0]["personaId"]].gameWins += team["results"][0]["wins"]
+                                            players[team["players"][0]["personaId"]].gameLosses += team["results"][0]["losses"]
+                                            // console.log(team["players"][0]["personaId"], team["results"][0]["wins"], "-", team["results"][0]["losses"])                                                     
+                                        }
                                     }
+                                } else {
+                                    // This is a bye
+                                    const personaA: string = match["teams"][0]["players"][0]["personaId"]
+                                    players[personaA].gameWins += 2
                                 }
-                            } else {
-                                // This is a bye
-                                const personaA: string = match["teams"][0]["players"][0]["personaId"]
-                                players[personaA].gameWins += 2
                             }
                         }
-                    }
-                }    
-                
-                // Update the display data structure
-                for (let personaId in players) {
-                    const player: Player = players[personaId];
-                    if (player.isBye === false){
-                        standingsArray.push({
-                            "id": player.personaId, 
-                            "title": player.firstName + " " + player.lastName,
-                            "rank": player.rank,
-                            "matchPoints": player.matchPoints,
-                            "omw": Math.round(player.opponentMatchWinPercent * 1000) / 10, // round display value to 1 decimal point
-                            "ogw": Math.round(player.opponentGameWinPercent * 1000) / 10, // round display value to 1 decimal point
-                            "gwp": Math.round(player.gameWinPercent * 1000) / 10, // round display value to 1 decimal point
-                            "personaId": player.personaId,
+                    }    
+                    
+                    // Update the display data structure
+                    for (let personaId in players) {
+                        const player: Player = players[personaId];
+                        if (player.isBye === false){
+                            standingsArray.push({
+                                "id": player.personaId, 
+                                "title": player.firstName + " " + player.lastName,
+                                "rank": player.rank,
+                                "matchPoints": player.matchPoints,
+                                "omw": Math.round(player.opponentMatchWinPercent * 1000) / 10, // round display value to 1 decimal point
+                                "ogw": Math.round(player.opponentGameWinPercent * 1000) / 10, // round display value to 1 decimal point
+                                "gwp": Math.round(player.gameWinPercent * 1000) / 10, // round display value to 1 decimal point
+                                "personaId": player.personaId,
+                            }
+                            );
                         }
-                        );
                     }
-                }
-                setStandingsData(standingsArray);
-                await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
+                    setStandingsData(standingsArray);
+                    await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
 
-                // Gather the pairings in a nice structure (array of personaId string pairs)
-                var pairings: any = [];
-                for (var match of json["data"]["event"]["gameState"]["currentRound"]["matches"]) {
-                    if (match["isBye"]) {
-                        const personaA: string = match["teams"][0]["players"][0]["personaId"]
-                        pairings.push([personaA, "bye"])
-                    } else{
-                        const personaA: string = match["teams"][0]["players"][0]["personaId"]
-                        const personaB: string = match["teams"][1]["players"][0]["personaId"]
-                        pairings.push([personaA, personaB])
+                    // Gather the pairings in a nice structure (array of personaId string pairs)
+                    var pairings: any = [];
+                    for (var match of json["data"]["event"]["gameState"]["currentRound"]["matches"]) {
+                        if (match["isBye"]) {
+                            const personaA: string = match["teams"][0]["players"][0]["personaId"]
+                            pairings.push([personaA, "bye"])
+                        } else{
+                            const personaA: string = match["teams"][0]["players"][0]["personaId"]
+                            const personaB: string = match["teams"][1]["players"][0]["personaId"]
+                            pairings.push([personaA, personaB])
+                        }
                     }
-                }
-                var opponentId: string = "";
-                // Add each new pairing to the others' list of opponents
-                for (var pairing in pairings) {
-                    players[pairings[pairing][0]].opponents.push(pairings[pairing][1])
-                    players[pairings[pairing][1]].opponents.push(pairings[pairing][0])
-                    // While we're at it, find who our opponent is
-                    if (pairings[pairing][0] === personaId) {
-                        opponentId = pairings[pairing][1];
+                    var opponentId: string = "";
+                    // Add each new pairing to the others' list of opponents
+                    for (let pairing in pairings) {
+                        console.log(pairings[pairing][0]);
+                        players[pairings[pairing][0]].opponents.push(pairings[pairing][1])
+                        players[pairings[pairing][1]].opponents.push(pairings[pairing][0])
+                        // While we're at it, find who our opponent is
+                        if (pairings[pairing][0] === personaId) {
+                            opponentId = pairings[pairing][1];
+                        }
+                        if (pairings[pairing][1] === personaId) {
+                            opponentId = pairings[pairing][0];
+                        }
+
                     }
-                    if (pairings[pairing][1] === personaId) {
-                        opponentId = pairings[pairing][0];
+    
+                    console.log("ourselves " + personaId);
+
+
+                    // Scenario 1: Match win
+                    const n = 1000;
+                    var successes = 0;
+                    for (let i = 0; i < n; i++) { 
+                        successes += Number(await SimulateRound(players, pairings, personaId, "win"));
                     }
+                    console.log("With a win: " + successes);
+                    setOurConversionRateWin(Math.round(10000 * (successes / n))  / 100);
+                    setProgress(1/6);
+                    await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
+                    
 
+                    // Scenario 2: Draw
+                    successes = 0;
+                    for (let i = 0; i < n; i++) { 
+                        successes += Number(await SimulateRound(players, pairings, personaId, "draw"));
+                    }
+                    console.log("With a draw: " + successes);
+                    setOurConversionRateDraw(Math.round(10000 * (successes / n))  / 100);
+                    setProgress(2/6);
+                    await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
+
+                    // Scenario 3: Match loss
+                    successes = 0;
+                    for (let i = 0; i < n; i++) { 
+                        successes += Number(await SimulateRound(players, pairings, personaId, "loss"));
+                    }
+                    console.log("With a loss: " + successes);
+                    setOurConversionRateLoss(Math.round(10000 * (successes / n))  / 100);
+                    setProgress(3/6);
+                    await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
+
+                    // Find our opponent. Calculate their results too
+
+                    // Scenario 1: Match win
+                    var successes = 0;
+                    for (let i = 0; i < n; i++) { 
+                        successes += Number(await SimulateRound(players, pairings, opponentId, "win"));
+                    }
+                    console.log("Opponent with a win: " + successes);
+                    setOppConversionRateWin(Math.round(10000 * (successes / n))  / 100);
+                    setProgress(4/6);
+                    await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
+
+                    // Scenario 2: Draw
+                    successes = 0;
+                    for (let i = 0; i < n; i++) { 
+                        successes += Number(await SimulateRound(players, pairings, opponentId, "draw"));
+                    }
+                    console.log("Opponent with a draw: " + successes);
+                    setOppConversionRateDraw(Math.round(10000 * (successes / n))  / 100);
+                    setProgress(5/6);
+                    await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
+
+                    // Scenario 3: Match loss
+                    successes = 0;
+                    for (let i = 0; i < n; i++) { 
+                        successes += Number(await SimulateRound(players, pairings, opponentId, "loss"));
+                    }
+                    console.log("Opponent with a loss: " + successes);
+                    setOppConversionRateLoss(Math.round(10000 * (successes / n))  / 100);
+                    setProgress(6/6);
+                    await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
                 }
- 
-                console.log("ourselves " + personaId);
-
-
-                // Scenario 1: Match win
-                const n = 1000;
-                var successes = 0;
-                for (let i = 0; i < n; i++) { 
-                    successes += Number(await SimulateRound(players, pairings, personaId, "win"));
-                }
-                console.log("With a win: " + successes);
-                setOurConversionRateWin(Math.round(10000 * (successes / n))  / 100);
-                setProgress(1/6);
-                await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
-                
-
-                // Scenario 2: Draw
-                successes = 0;
-                for (let i = 0; i < n; i++) { 
-                    successes += Number(await SimulateRound(players, pairings, personaId, "draw"));
-                }
-                console.log("With a draw: " + successes);
-                setOurConversionRateDraw(Math.round(10000 * (successes / n))  / 100);
-                setProgress(2/6);
-                await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
-
-                // Scenario 3: Match loss
-                successes = 0;
-                for (let i = 0; i < n; i++) { 
-                    successes += Number(await SimulateRound(players, pairings, personaId, "loss"));
-                }
-                console.log("With a loss: " + successes);
-                setOurConversionRateLoss(Math.round(10000 * (successes / n))  / 100);
-                setProgress(3/6);
-                await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
-
-                // Find our opponent. Calculate their results too
-
-                // Scenario 1: Match win
-                var successes = 0;
-                for (let i = 0; i < n; i++) { 
-                    successes += Number(await SimulateRound(players, pairings, opponentId, "win"));
-                }
-                console.log("Opponent with a win: " + successes);
-                setOppConversionRateWin(Math.round(10000 * (successes / n))  / 100);
-                setProgress(4/6);
-                await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
-
-                // Scenario 2: Draw
-                successes = 0;
-                for (let i = 0; i < n; i++) { 
-                    successes += Number(await SimulateRound(players, pairings, opponentId, "draw"));
-                }
-                console.log("Opponent with a draw: " + successes);
-                setOppConversionRateDraw(Math.round(10000 * (successes / n))  / 100);
-                setProgress(5/6);
-                await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
-
-                // Scenario 3: Match loss
-                successes = 0;
-                for (let i = 0; i < n; i++) { 
-                    successes += Number(await SimulateRound(players, pairings, opponentId, "loss"));
-                }
-                console.log("Opponent with a loss: " + successes);
-                setOppConversionRateLoss(Math.round(10000 * (successes / n))  / 100);
-                setProgress(6/6);
-                await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
 
             } else {
                 console.log("Error fetching standings")
@@ -601,7 +614,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         <View style={[styles.container, {
             flexDirection: "row"}]}>
             <Text style={[styles.headerItem]}>Place</Text>
-            <Text style={[styles.headerItem]}>First Name</Text>
+            <Text style={[styles.headerItem]}>Name</Text>
             <Text style={[styles.headerItem]}>Points</Text>
             <Text style={[styles.headerItem]}>OMW%</Text>
             <Text style={[styles.headerItem]}>GW%</Text>
@@ -611,41 +624,56 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     
     class SimulationResultsArea extends Component {
         render(){
-            if (progress >= 1){           
-                return (
-                    <View style={styles.container}>
-                    <Text style={styles.titleLabel}>Your Odds:</Text>
-                    <View style={styles.simulationsResultsContainer}>
-                        <View style={styles.simulationBoxContainerWin}>
-                            <Text style={styles.titleLabel}>Win</Text>
-                            <Text style={styles.titleLabel}>{ourConversionRateWin}%</Text>
+            if (progress >= 1){     
+                if (currentRound === minRounds){
+                    return (
+                        <View style={styles.container}>
+                            <Text style={styles.titleLabel}>Your Odds:</Text>
+                            <View style={styles.simulationsResultsContainer}>
+                                <View style={styles.simulationBoxContainerWin}>
+                                    <Text style={styles.titleLabel}>Win</Text>
+                                    <Text style={styles.titleLabel}>{ourConversionRateWin}%</Text>
+                                </View>
+                                <View style={styles.simulationBoxContainerDraw}>
+                                    <Text style={styles.titleLabel}>Draw</Text>
+                                    <Text style={styles.titleLabel}>{ourConversionRateDraw}%</Text>
+                                </View>
+                                <View style={styles.simulationBoxContainerLoss}>
+                                    <Text style={styles.titleLabel}>Loss</Text>
+                                    <Text style={styles.titleLabel}>{ourConversionRateLoss}%</Text>
+                                </View>
+                            </View>
+                            <Text style={styles.titleLabel}>Your Opponent's Odds:</Text>
+                            <View style={styles.simulationsResultsContainer}>
+                            <View style={styles.simulationBoxContainerWin}>
+                                    <Text style={styles.titleLabel}>Win</Text>
+                                    <Text style={styles.titleLabel}>{oppConversionRateWin}%</Text>
+                                </View>
+                                <View style={styles.simulationBoxContainerDraw}>
+                                    <Text style={styles.titleLabel}>Draw</Text>
+                                    <Text style={styles.titleLabel}>{oppConversionRateDraw}%</Text>
+                                </View>
+                                <View style={styles.simulationBoxContainerLoss}>
+                                    <Text style={styles.titleLabel}>Loss</Text>
+                                    <Text style={styles.titleLabel}>{oppConversionRateLoss}%</Text>
+                                </View>
+                            </View>
+                        </View>              
+                    )
+                } else if (currentRound === 1) {
+                    return (
+                        <View style={styles.container}>
+                            <Text style={styles.titleLabel}>It's just the first round. Anything is possible! Come back later.</Text>
                         </View>
-                        <View style={styles.simulationBoxContainerDraw}>
-                            <Text style={styles.titleLabel}>Draw</Text>
-                            <Text style={styles.titleLabel}>{ourConversionRateDraw}%</Text>
+                    )
+                } else {
+                    return (
+                        <View style={styles.container}>
+                            <Text style={styles.titleLabel}>If you were to win out you'd make top 8:...</Text>
                         </View>
-                        <View style={styles.simulationBoxContainerLoss}>
-                            <Text style={styles.titleLabel}>Loss</Text>
-                            <Text style={styles.titleLabel}>{ourConversionRateLoss}%</Text>
-                        </View>
-                    </View>
-                    <Text style={styles.titleLabel}>Your Opponent's Odds:</Text>
-                    <View style={styles.simulationsResultsContainer}>
-                    <View style={styles.simulationBoxContainerWin}>
-                            <Text style={styles.titleLabel}>Win</Text>
-                            <Text style={styles.titleLabel}>{oppConversionRateWin}%</Text>
-                        </View>
-                        <View style={styles.simulationBoxContainerDraw}>
-                            <Text style={styles.titleLabel}>Draw</Text>
-                            <Text style={styles.titleLabel}>{oppConversionRateDraw}%</Text>
-                        </View>
-                        <View style={styles.simulationBoxContainerLoss}>
-                            <Text style={styles.titleLabel}>Loss</Text>
-                            <Text style={styles.titleLabel}>{oppConversionRateLoss}%</Text>
-                        </View>
-                    </View>
-                </View>              
-                )
+                    )
+                }
+
             } else{
                 return (
                     <View style={styles.container}>
@@ -664,7 +692,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             } else {
                 return (
                     <View style={styles.standingsAreaContainer}>
-                        <Text style={styles.titleLabel}>Round {currentRound} of {minRounds} standings</Text>
+                        <Text style={styles.titleLabel}>Round {currentRound} of {minRounds} Standings</Text>
                         <SafeAreaView style={styles.standingsContainer}>
                             <FlatList
                                 data={standingsData}
