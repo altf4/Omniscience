@@ -393,6 +393,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                     }
                 }
                 setStandingsData(standingsArray);
+                await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
 
                 // Gather the pairings in a nice structure (array of personaId string pairs)
                 var pairings: any = [];
@@ -608,7 +609,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         </View>
     );
     
-    class SimulationResults extends Component {
+    class SimulationResultsArea extends Component {
         render(){
             if (progress >= 1){           
                 return (
@@ -646,43 +647,43 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                 </View>              
                 )
             } else{
-                return (<View></View>);
-            }
-
-        }        
-    };
-
-    class SimulationProgress extends Component {
-        render(){
-            if (progress < 1){  
                 return (
                     <View style={styles.container}>
                         <Text style={styles.titleLabel}>Crunching numbers...</Text>
                         <Progress.Pie progress={progress} size={50} />
                     </View>
                 );
+            }
+        }        
+    };
+
+    class StandingsArea extends Component {
+        render(){
+            if (standingsData.length === 0) {
+                return (<Progress.Circle size={30} indeterminate={true} />)
             } else {
-                return (<View></View>);
+                return (
+                    <View style={styles.standingsAreaContainer}>
+                        <Text style={styles.titleLabel}>Round {currentRound} of {minRounds} standings</Text>
+                        <SafeAreaView style={styles.standingsContainer}>
+                            <FlatList
+                                data={standingsData}
+                                renderItem={renderItem}
+                                keyExtractor={item => item.id}
+                                extraData={selectedId}
+                                ListHeaderComponent={headerItem}
+                            />
+                        </SafeAreaView>
+                    </View>
+                )
             }
         }
-    };
+    }
 
     return (
         <View style={styles.container}>
-            <SimulationProgress/>
-            <SimulationResults/>
-            <View style={styles.standingsAreaContainer}>
-                <Text style={styles.titleLabel}>Round {currentRound} of {minRounds}</Text>
-                <SafeAreaView style={styles.standingsContainer}>
-                    <FlatList
-                        data={standingsData}
-                        renderItem={renderItem}
-                        keyExtractor={item => item.id}
-                        extraData={selectedId}
-                        ListHeaderComponent={headerItem}
-                    />
-                </SafeAreaView>
+            <SimulationResultsArea/>
+            <StandingsArea/>
         </View>
-      </View>
     );
 }
