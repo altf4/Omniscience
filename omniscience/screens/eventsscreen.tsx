@@ -132,7 +132,7 @@ export const EventsScreen = ({navigation}: {navigation: any}) => {
     );
     const renderItem = ({ item }: {item: any}) => (
         <Item title={item.title}
-            onPress={() => {console.log("Passing over to " + item.id); navigation.navigate("Standings", {
+            onPress={() => {navigation.navigate("Standings", {
                 eventID: item.id,
               });}}
             backgroundColor={"#6e3b6e"}

@@ -300,6 +300,28 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         return false;
     }
 
+    async function updateStandingsDisplay(gamestate: GameState) {
+        var standingsArray: any = [];
+        // Update the display data structure
+        for (let personaId in gamestate.players) {
+            const player: Player = gamestate.players[personaId];
+            if (player.isBye === false) {
+                standingsArray.push({
+                    "id": player.personaId, 
+                    "title": player.firstName + " " + player.lastName,
+                    "rank": player.rank,
+                    "matchPoints": player.matchPoints,
+                    "omw": Math.round(player.opponentMatchWinPercent * 1000) / 10, // round display value to 1 decimal point
+                    "ogw": Math.round(player.opponentGameWinPercent * 1000) / 10, // round display value to 1 decimal point
+                    "gwp": Math.round(player.gameWinPercent * 1000) / 10, // round display value to 1 decimal point
+                    "personaId": player.personaId,
+                }
+                );
+            }
+        }
+        setStandingsData(standingsArray);
+    }
+
     // Repeatedly calls SimulateRound to stochastically determine success odds of top 8'ing the event, given last round standings
     //  n - Number of simulations to run per scenario (total amount run will be 6n)
     //  players - map of personaId -> Player for every player in the event
@@ -421,16 +443,33 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             setMinRounds(min_rounds);
             setCurrentRound(current_round);
 
-            if (current_round < min_rounds) {
-                setProgress(1);
+            if (current_round == 1) {
+                var gamestate: GameState = new GameState();
+                // On the first round, we don't have "standings" yet. So just list the players in no particular order instead
+                //  There's still pairings to work with.
+                const rounds: any[] = json["data"]["event"]["gameState"]["rounds"];
+                for (let round of rounds) {
+                    const matches: any[] = round["matches"];
+                    var rank: number = 1;
+                    for (let match of matches) {
+                        for (let team of match["teams"]) {
+                            var player = new Player();
+                            player.personaId = team["players"][0]["personaId"];
+                            player.firstName = team["players"][0]["firstName"];
+                            player.lastName = team["players"][0]["lastName"];
+                            player.rank = rank;
+                            rank += 1;
+                            gamestate.players[player.personaId] = player;
+                        }
+                    }
+                }
 
-                // TODO Rounds 2-3 here
-
-                // standingsArray.push({"id": "bye"});
-                // setStandingsData(standingsArray);
+                updateStandingsDisplay(gamestate);
+                await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
+                return gamestate;
             } else {
                 // Build initial players array
-                for (var team of json["data"]["event"]["gameState"]["standings"]) {
+                for (let team of json["data"]["event"]["gameState"]["standings"]) {
                     var player = new Player();
                     player.wins = Number(team["wins"]);
                     player.losses = Number(team["losses"]);
@@ -469,7 +508,6 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                                     if (team["results"]){
                                         players[team["players"][0]["personaId"]].gameWins += team["results"][0]["wins"]
                                         players[team["players"][0]["personaId"]].gameLosses += team["results"][0]["losses"]
-                                        // console.log(team["players"][0]["personaId"], team["results"][0]["wins"], "-", team["results"][0]["losses"])                                                     
                                     }
                                 }
                             } else {
@@ -480,27 +518,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                         }
                     }
                 }    
-                
-                // Update the display data structure
-                for (let personaId in players) {
-                    const player: Player = players[personaId];
-                    if (player.isBye === false){
-                        standingsArray.push({
-                            "id": player.personaId, 
-                            "title": player.firstName + " " + player.lastName,
-                            "rank": player.rank,
-                            "matchPoints": player.matchPoints,
-                            "omw": Math.round(player.opponentMatchWinPercent * 1000) / 10, // round display value to 1 decimal point
-                            "ogw": Math.round(player.opponentGameWinPercent * 1000) / 10, // round display value to 1 decimal point
-                            "gwp": Math.round(player.gameWinPercent * 1000) / 10, // round display value to 1 decimal point
-                            "personaId": player.personaId,
-                        }
-                        );
-                    }
-                }
-                setStandingsData(standingsArray);
-                await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
-
+            
                 // Gather the pairings in a nice structure (array of personaId string pairs)
                 var pairings: any = [];
                 for (var match of json["data"]["event"]["gameState"]["currentRound"]["matches"]) {
@@ -534,6 +552,11 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                 var gamestate: GameState = new GameState();
                 gamestate.players = players;
                 gamestate.pairings = pairings;
+
+                await updateStandingsDisplay(gamestate);
+                setStandingsData(standingsArray);
+                await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
+
                 return gamestate;
             }
 
@@ -550,7 +573,10 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             var gamestate: GameState = await fetchGameState();
             const personaId: any = await AsyncStorage.getItem("@ourPersonaId");
             // Run the simulations
-            SimulateLastRoundOfEvent(1000, gamestate, personaId);
+            if (currentRound > 1) {
+                SimulateLastRoundOfEvent(1000, gamestate, personaId);
+            }
+            setProgress(1);
         }
 
         doSimulations();
@@ -746,7 +772,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                     )
                 }
 
-            } else{
+            } else {
                 return (
                     <View style={styles.container}>
                         <Text style={styles.titleLabel}>Crunching numbers...</Text>
