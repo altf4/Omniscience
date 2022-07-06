@@ -39,55 +39,54 @@ export const EventsScreen = ({navigation}: {navigation: any}) => {
         }
     }
 
+    //Get a list of events the user is in
+    // TODO: Make this a pure function that gets an events structure and have callers responsible for page behavior
+    async function fetchEvents () {
+        try {
+            const display: any = await AsyncStorage.getItem("@displayName");
+            if (display){
+                setDisplayName(display);
+            }
+
+            // TODO: We refresh at the start here, which maybe is suboptimal. Perhaps we should only refresh on error. But that seems more complex for now
+            if(await refreshAccess() === false) {
+                console.log("Failed to refresh authentication");
+                navigation.navigate("Login");                    
+            }
+            
+            const access_token = await AsyncStorage.getItem("@access_token");
+            const response = await fetch(GRAPHQL_API, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + access_token
+                },
+                body: JSON.stringify({
+                    "operationName": "MyActiveEvents",
+                    "variables": {},
+                    "query": "query MyActiveEvents { myActiveEvents { ...EventMyActive __typename} } fragment EventMyActive on Event { __typename id venue {...Venue __typename}} fragment Venue on Venue {__typename id name latitude longitude address}"
+                }),
+            });
+            const json = await response.json();
+            if (response.status == 200) {
+                //TODO List ALL events, not just first
+                const id = json["data"]["myActiveEvents"][0]["id"];
+                setEventData([{"id": id, "title": "Event: " + id}]);
+
+            } else {
+                //TODO FAILED TO LOG IN
+                console.log("Failed to authenticate: ", json);
+                navigation.navigate("Login");
+            }
+        }
+        catch(e){
+            console.log(e);
+        }
+    }
+
     // "OnLoad"
     useEffect(() => {
-        //Get a list of events the user is in
-        async function fetchEvents () {
-            try {
-                const display: any = await AsyncStorage.getItem("@displayName");
-                if (display){
-                    setDisplayName(display);
-                }
-
-                // TODO: We refresh at the start here, which maybe is suboptimal. Perhaps we should only refresh on error. But that seems more complex for now
-                if(await refreshAccess() === false) {
-                    console.log("Failed to refresh authentication");
-                    navigation.navigate("Login");                    
-                }
-                
-                const access_token = await AsyncStorage.getItem("@access_token");
-                const response = await fetch(GRAPHQL_API, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": "Bearer " + access_token
-                    },
-                    body: JSON.stringify({
-                        "operationName": "MyActiveEvents",
-                        "variables": {},
-                        "query": "query MyActiveEvents { myActiveEvents { ...EventMyActive __typename} } fragment EventMyActive on Event { __typename id venue {...Venue __typename}} fragment Venue on Venue {__typename id name latitude longitude address}"
-                    }),
-                });
-                const json = await response.json();
-                if (response.status == 200) {
-                    //TODO List ALL events, not just first
-                    const id = json["data"]["myActiveEvents"][0]["id"];
-                    setEventData([{"id": id, "title": "Event: " + id}]);
-                    console.log(eventData);
-
-                } else {
-                    //TODO FAILED TO LOG IN
-                    console.log("Failed to authenticate: ", json);
-                    navigation.navigate("Login");
-                }
-            }
-            catch(e){
-                console.log(e);
-            }
-       }
-  
-       fetchEvents();
-        
+        fetchEvents();
     }, []);
   
 
@@ -122,7 +121,8 @@ export const EventsScreen = ({navigation}: {navigation: any}) => {
     }
     const onRefresh = React.useCallback(() => {
         setRefreshing(true);
-        wait(2000).then(() => setRefreshing(false));
+        fetchEvents();
+        wait(1000).then(() => setRefreshing(false));
     }, []);
 
     const Item = ({ title, onPress, backgroundColor, textColor }: {title: string, onPress: any, backgroundColor: any, textColor: any}) => (
