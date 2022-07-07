@@ -3,13 +3,14 @@ import React, {useState, useEffect} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const EventsScreen = ({navigation}: {navigation: any}) => {
+    const OAUTH_API = "https://api.platform.wizards.com/auth/oauth/token"
+    const GRAPHQL_API = "https://api2.tabletop.tiamat-origin.cloud/silverbeak-griffin-service/graphql"
+
     var [accessToken, setAccessToken] = useState('');
     const [selectedId, setSelectedId] = useState(null);
     const [eventData, setEventData] = useState([]);
     const [displayName, setDisplayName] = useState('');
     const [refreshing, setRefreshing] = useState(false);
-
-    const GRAPHQL_API = "https://api2.tabletop.tiamat-origin.cloud/silverbeak-griffin-service/graphql"
 
     // Fetches a new access token from our current refresh token
     async function refreshAccess() {
@@ -19,7 +20,7 @@ export const EventsScreen = ({navigation}: {navigation: any}) => {
             "grant_type": "refresh_token", 
             "refresh_token": value,
         });
-        const response = await fetch('https://api.platform.wizards.com/auth/oauth/token', {
+        const response = await fetch(OAUTH_API, {
             method: "POST",
             headers: {
             "Content-Type": "application/x-www-form-urlencoded",

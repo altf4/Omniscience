@@ -6,6 +6,8 @@ import * as Progress from 'react-native-progress';
 
 export function StandingsScreen({route, navigation}: {route: any, navigation: any}) {
     const GRAPHQL_API = "https://api2.tabletop.tiamat-origin.cloud/silverbeak-griffin-service/graphql"
+    const OAUTH_API = "https://api.platform.wizards.com/auth/oauth/token"
+
     const [standingsData, setStandingsData] = useState([]);
     const [selectedId, setSelectedId] = useState(null);
     const [currentRound, setCurrentRound] = useState(0);
@@ -30,7 +32,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             "grant_type": "refresh_token", 
             "refresh_token": value,
         });
-        const response = await fetch('https://api.platform.wizards.com/auth/oauth/token', {
+        const response = await fetch(OAUTH_API, {
             method: "POST",
             headers: {
             "Content-Type": "application/x-www-form-urlencoded",
@@ -92,10 +94,14 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     class GameState {
         players: {[personaId: string] : Player}
         pairings: any[]
+        currentRound: number
+        minRound: number
 
         constructor() {
             this.players = {};
             this.pairings = [];
+            this.currentRound = 0;
+            this.minRound = 1;
         }
 
         // Generates new pairings of the players, chosen at random
@@ -372,7 +378,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     //  targetPlayer - Player we wish to simulate for
     async function SimulateLastRoundOfEvent(n: number, gamestate: GameState, targetPlayerId: string) {
 
-        // Figure out who the targer player's opponent is
+        // Figure out who the target player's opponent is
         var opponentId: string = "";
         for (let pairing in gamestate.pairings) {
             if (gamestate.pairings[pairing][0] === targetPlayerId) {
@@ -466,6 +472,8 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         // Set our personaId to state
         const personaId: any = await AsyncStorage.getItem("@ourPersonaId");
         setOurPersonaId(personaId);
+        // GameState that we will be returning later
+        var gamestate: GameState = new GameState();
 
         // TODO: We refresh at the start here, which maybe is suboptimal. Perhaps we should only refresh on error. But that seems more complex for now
         if(await refreshAccess() === false) {
@@ -496,8 +504,8 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             // Set the round data
             const min_rounds: number = Number(json["data"]["event"]["gameState"]["minRounds"]);
             const current_round: number = Number(json["data"]["event"]["gameState"]["currentRoundNumber"]);
-            setMinRounds(min_rounds);
-            setCurrentRound(current_round);
+            gamestate.currentRound = current_round;
+            gamestate.minRound = min_rounds;
 
             if (current_round == 1) {
                 var gamestate: GameState = new GameState();
@@ -586,22 +594,12 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                         pairings.push([personaA, personaB])
                     }
                 }
-                var opponentId: string = "";
                 // Add each new pairing to the others' list of opponents
                 for (let pairing in pairings) {
                     players[pairings[pairing][0]].opponents.push(pairings[pairing][1])
                     players[pairings[pairing][1]].opponents.push(pairings[pairing][0])
-                    // While we're at it, find who our opponent is
-                    if (pairings[pairing][0] === personaId) {
-                        opponentId = pairings[pairing][1];
-                    }
-                    if (pairings[pairing][1] === personaId) {
-                        opponentId = pairings[pairing][0];
-                    }
-
                 }
 
-                var gamestate: GameState = new GameState();
                 gamestate.players = players;
                 gamestate.pairings = pairings;
 
@@ -624,9 +622,10 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             var gamestate: GameState = await fetchGameState();
             const personaId: any = await AsyncStorage.getItem("@ourPersonaId");
             // Run the simulations
-            // TODO: If this shows 0 of 0, then try it again in second
-            console.log("Round " + currentRound +" of "+ minRounds);
-            if (currentRound > 0 && currentRound === minRounds) {
+            setCurrentRound(gamestate.currentRound);
+            setMinRounds(gamestate.minRound);
+            console.log("Round " + gamestate.currentRound +" of "+ gamestate.minRound);
+            if (gamestate.currentRound > 0 && gamestate.currentRound === gamestate.minRound) {
                 SimulateLastRoundOfEvent(1000, gamestate, personaId);
             }
             setProgress(1);
@@ -761,7 +760,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         setProgress(0);
         var gamestate: GameState = await fetchGameState();
         // Run the simulations if it's the last round
-        if (currentRound === minRounds)  {
+        if (gamestate.currentRound === gamestate.minRound)  {
             const personaId: any = await AsyncStorage.getItem("@ourPersonaId");
             SimulateLastRoundOfEvent(1000, gamestate, personaId);            
         }

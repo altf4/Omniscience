@@ -4,6 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 
 export const LoginScreen = ({navigation}: {navigation: any}) => {
+  const OAUTH_API = "https://api.platform.wizards.com/auth/oauth/token"
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   var [accessToken, setAccessToken] = useState('');
@@ -74,7 +76,7 @@ export const LoginScreen = ({navigation}: {navigation: any}) => {
         "username": username,
         "password": password,
       });
-      const response = await fetch('https://api.platform.wizards.com/auth/oauth/token', {
+      const response = await fetch(OAUTH_API, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
