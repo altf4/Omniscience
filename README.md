@@ -3,6 +3,7 @@ See the future of your Magic: The Gathering tournament
 
 Specifically, Omniscience takes the current state of a Magic: The Gathering tournament you're in (one that is using the official Companion app for tracking) and simulates thousands of possible results at random. From this, you can know what your odds are of making it into the top 8 of a tournament if you win/lose/draw. 
 
+
 ### Features
 
 1. **Can I draw in?**
