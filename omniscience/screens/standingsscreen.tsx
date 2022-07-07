@@ -181,7 +181,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             if (targetPlayer === playerA.personaId || targetPlayer === playerB.personaId) {
                 // reset the players so Player A is the target
                 playerA = players[targetPlayer];
-                if (pairing[0] === targetPlayer){
+                if (gamestate.pairings[pairing][0] === targetPlayer){
                     playerB = players[gamestate.pairings[pairing][1]];
                 } else {
                     playerB = players[gamestate.pairings[pairing][0]];
@@ -401,6 +401,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         for (let i = 0; i < n; i++) { 
             const newGameState: GameState = await SimulateRound(gamestate, targetPlayerId, "draw");
             successes += Number(isInTop8(newGameState, targetPlayerId));
+            // console.log("score after draw: " + newGameState.players[targetPlayerId].matchPoints);
         }
         console.log("With a draw: " + successes);
         setOurConversionRateDraw(Math.round(10000 * (successes / n))  / 100);
@@ -413,6 +414,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             const newGameState: GameState = await SimulateRound(gamestate, targetPlayerId, "loss");
             successes += Number(isInTop8(newGameState, targetPlayerId));
         }
+
         console.log("With a loss: " + successes);
         setOurConversionRateLoss(Math.round(10000 * (successes / n))  / 100);
         setProgress(3/6);
@@ -424,7 +426,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         var successes = 0;
         for (let i = 0; i < n; i++) { 
             const newGameState: GameState = await SimulateRound(gamestate, opponentId, "win");
-            successes += Number(isInTop8(newGameState, targetPlayerId));
+            successes += Number(isInTop8(newGameState, opponentId));
         }
         console.log("Opponent with a win: " + successes);
         setOppConversionRateWin(Math.round(10000 * (successes / n))  / 100);
@@ -435,7 +437,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         successes = 0;
         for (let i = 0; i < n; i++) { 
             const newGameState: GameState = await SimulateRound(gamestate, opponentId, "draw");
-            successes += Number(isInTop8(newGameState, targetPlayerId));
+            successes += Number(isInTop8(newGameState, opponentId));
         }
         console.log("Opponent with a draw: " + successes);
         setOppConversionRateDraw(Math.round(10000 * (successes / n))  / 100);
@@ -446,7 +448,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         successes = 0;
         for (let i = 0; i < n; i++) { 
             const newGameState: GameState = await SimulateRound(gamestate, opponentId, "loss");
-            successes += Number(isInTop8(newGameState, targetPlayerId));
+            successes += Number(isInTop8(newGameState, opponentId));
         }
         console.log("Opponent with a loss: " + successes);
         setOppConversionRateLoss(Math.round(10000 * (successes / n))  / 100);
@@ -622,7 +624,8 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             var gamestate: GameState = await fetchGameState();
             const personaId: any = await AsyncStorage.getItem("@ourPersonaId");
             // Run the simulations
-            console.log(currentRound +" - "+ minRounds);
+            // TODO: If this shows 0 of 0, then try it again in second
+            console.log("Round " + currentRound +" of "+ minRounds);
             if (currentRound > 0 && currentRound === minRounds) {
                 SimulateLastRoundOfEvent(1000, gamestate, personaId);
             }
