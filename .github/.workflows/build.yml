@@ -5,7 +5,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Install npm dependencies
+      - name: Install npm dependencies TEST
+      - run: echo "TESTTEST"
       - run: cd omniscience 
       - run: npm install
   build-android:
