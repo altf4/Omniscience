@@ -1,5 +1,5 @@
 import { Button, StyleSheet, Text, TextInput, RefreshControl, View, SafeAreaView, TouchableOpacity, FlatList, ViewStyle} from 'react-native';
-import React, {useState, useEffect} from 'react';
+import React, {Component, useState, useEffect} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const EventsScreen = ({navigation}: {navigation: any}) => {
@@ -70,14 +70,17 @@ export const EventsScreen = ({navigation}: {navigation: any}) => {
             });
             const json = await response.json();
             if (response.status == 200) {
-                //TODO List ALL events, not just first
-                const id = json["data"]["myActiveEvents"][0]["id"];
-                setEventData([{"id": id, "title": "Event: " + id}]);
+                var events: any[] = [];
+                for (let event of json["data"]["myActiveEvents"]) {
+                    const id: string = event["id"];
+                    events.push({"id": id, "title": "Event: " + id});
+                }
+                setEventData(events);
 
             } else {
                 //TODO FAILED TO LOG IN
                 console.log("Failed to authenticate: ", json);
-                navigation.navigate("Login");
+                navigation.navigate("Login"); 
             }
         }
         catch(e){
@@ -114,6 +117,9 @@ export const EventsScreen = ({navigation}: {navigation: any}) => {
         welcome: {
             fontSize: 24,
         },
+        noEventsMessage: {
+            fontSize: 24,
+        },
     });
 
 
@@ -141,20 +147,39 @@ export const EventsScreen = ({navigation}: {navigation: any}) => {
         />
     );
 
+    class EventsList extends Component {
+        render() {
+            if (eventData.length === 0) {
+                return (                
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh}>
+                        <SafeAreaView style={styles.container}>
+                            <Text style={styles.noEventsMessage}>No Events</Text>
+                        </SafeAreaView>
+                    </RefreshControl>
+                )
+            }
+            else {
+                return (
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh}>
+                        <SafeAreaView style={styles.container}>
+                            <FlatList
+                                data={eventData}
+                                renderItem={renderItem}
+                                keyExtractor={item => item.id}
+                                extraData={selectedId}
+                            />
+                        </SafeAreaView>
+                    </RefreshControl>
+                )
+            }
+        }
+    }
+
     return (
             <View style={styles.container}>
             <Text style={styles.welcome}>Welcome {displayName}</Text>
             <Text style={styles.titleLabel}>Select Event:</Text>
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh}>
-                <SafeAreaView style={styles.container}>
-                    <FlatList
-                        data={eventData}
-                        renderItem={renderItem}
-                        keyExtractor={item => item.id}
-                        extraData={selectedId}
-                    />
-                </SafeAreaView>
-            </RefreshControl>
+            <EventsList/>
         </View>
     );
 }
