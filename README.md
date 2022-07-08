@@ -22,7 +22,7 @@ Specifically, Omniscience takes the current state of a Magic: The Gathering tour
 
 1. **What platform can I use Omniscience on?**
 
-    Android and iOS apps are available. Omniscience is written in React Native, which technically can make a local Web application, but this does not work since your browser will refuse to make cross-origin HTTP requests. Non-browser native apps do not adhere to the Same-Origin Policy, and so those work just fine.
+    Android and iOS are supported. Omniscience is written in React Native, which technically can make a local Web application, but this does not work since your browser will refuse to make cross-origin HTTP requests. Non-browser native apps do not adhere to the Same-Origin Policy, and so those work just fine.
 
 2. **Why do I have to enter my Companion app credentials?**
 
