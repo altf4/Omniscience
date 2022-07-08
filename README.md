@@ -41,3 +41,8 @@ Specifically, Omniscience takes the current state of a Magic: The Gathering tour
     Omniscience works by simulating thousands of possible event outcomes at random. For even medium-sized events, this means that there's billions (if not in fact way more) of possible distinct outcomes per round. We can't simulate all of them. If Omniscience simulates 1,000 events and you make top 8 in all 1,000 simulations, it will report the percentage as 100%. But that doesn't mean there couldn't POSSIBLY be some exceedingly rare scenario lurking in the immense possibility space that we didn't happen to land on. So the numbers should be interpreted as approximations rather than mathematical certainties. In practice, it ought to be rigorous enough to base decisions on. 
 
     One other clarification is that Omniscience makes some reasonable assumptions about player behavior, especially around drawing. Some number of matches will inevitably result in unintentional draws. (The round goes to time with no winner) Omniscience needs to make an assumption about what this unintentional draw rate will be. If this assumption is too far off from reality, then the simulations risk not being sufficiently representative. Similarly, Omniscience assumes that players who are trivially locked for top 8 (acutally mathematicaly locked, not just stochastically likely) will choose to draw. This is typically a safe assumption, but sometimes players do strange things.
+
+### Building from Source / Running on Expo
+
+Omniscience is written in React Native, so building it should be as simple as `yarn` and then `yarn start`. You should then be able to pull the app up using the Expo Go app. Setting up Expo is beyond the scope of this readme, but it's pretty simple and Googleable. 
+
