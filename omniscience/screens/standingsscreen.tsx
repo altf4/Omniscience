@@ -824,6 +824,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                             <RefreshControl refreshing={refreshing} onRefresh={onRefresh}>
                                 <View style={styles.container}>
                                     <Text style={styles.titleLabel}>If you were to win out you'd make top 8:...</Text>
+                                    <Text style={styles.titleLabel}>Feature Coming Soon Sorry</Text>
                                 </View>
                             </RefreshControl>
                         </View>
