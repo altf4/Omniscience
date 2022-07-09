@@ -22,6 +22,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     const [oppConversionRateWin, setOppConversionRateWin] = useState(0);
     const [oppConversionRateDraw, setOppConversionRateDraw] = useState(0);
     const [oppConversionRateLoss, setOppConversionRateLoss] = useState(0);
+    const [winOutOdds, setWinOutOdds] = useState(0); // odds of making top 8 by winning out the rest of the event
 
 
     // Fetches a new access token from our current refresh token
@@ -93,9 +94,23 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     // Represents a snapshot of the current state of an event, including player standings and pairings for the current round
     class GameState {
         players: {[personaId: string] : Player}
-        pairings: any[]
+        pairings: string[][]
         currentRound: number
         minRound: number
+
+        // Make thick copy of the gamestate
+        copy(): GameState {
+            var newGamestate: GameState = new GameState();
+            for (let player in this.players) {
+                newGamestate.players[player] = {...this.players[player]};
+            }
+            for (let pairing of this.pairings) {
+                newGamestate.pairings.push([pairing[0], pairing[1]]);
+            }
+            newGamestate.currentRound = this.currentRound;
+            newGamestate.minRound = this.minRound;
+            return newGamestate;
+        }
 
         constructor() {
             this.players = {};
@@ -109,13 +124,41 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         generateRandomPairings(isFinalRound: boolean) {
             const playersArray = this.getSortedPlayers();
             var alreadyPaired: string[] = [];
-
+            this.pairings = [];
+        
             // For each player, find thier best match. Starting with the top.
             for (let player of playersArray) {
-                var arr: string[] = this.getPlayersWithPoints(player.matchPoints);
-                // TODO then remove anyone this player has already played against, and anyone in the alreadyPaired list
-                // TODO then pick one at random
-                // TODO unless the list is now empty (all opponents already played), then try again at a lower match point total
+                // Shortcut out if this player is already paired.
+                if(!alreadyPaired.includes(player.personaId)) {               
+                    var matchPoints: number = player.matchPoints;
+                    for (var i = matchPoints; i >= 0; i--) {
+                        var potentialOpponents: string[] = this.getPlayersWithPoints(i);
+                        var notOpponents: string[] = []; // same as above, but with all previous opponents removed 
+                        for (let opponent of potentialOpponents) {
+                            // remove anyone this player has already played against, and anyone in the alreadyPaired list
+                            if (!player.opponents.includes(opponent) && !alreadyPaired.includes(opponent)) {
+                                // Don't pair against yourself
+                                if (opponent !== player.personaId) {
+                                    notOpponents.push(opponent);
+                                }
+                            }
+                        }
+                        if (notOpponents.length > 0) {
+                            // Pick a random player in the list and pair them up
+                            const randomPlayer: string = notOpponents[Math.floor(Math.random() * notOpponents.length)];
+                            this.pairings.push([randomPlayer, player.personaId])
+                            // Mark both players as having been paired
+                            alreadyPaired.push(player.personaId);
+                            alreadyPaired.push(randomPlayer);
+                            break;
+                        } else if (matchPoints === 0) {
+                            // If there's nobody else to pair against and we've gone through every match point value, then pair up against bye
+                            this.pairings.push(["bye", player.personaId])
+                            alreadyPaired.push(player.personaId);
+                            alreadyPaired.push("bye");
+                        }
+                    }
+                }
             } 
         }
 
@@ -328,9 +371,11 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             }
         }
 
-        var gamestate: GameState = new GameState();
-        gamestate.players = players;
-        return gamestate;
+        var returnState: GameState = new GameState();
+        returnState.players = players;
+        returnState.currentRound = gamestate.currentRound + 1;
+        returnState.minRound = gamestate.minRound;
+        return returnState;
     }
 
     async function updateStandingsDisplay(gamestate: GameState) {
@@ -463,8 +508,30 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     }
 
     // Assuming we're in the middle of an event, simulate target player's odds of top 8'ing, assuming they win out
-    async function SimulateRestOfEvent(n: number, gamestate: GameState, targetPlayerId: string) {
+    // returns the number of successful top 8's (out of n)
+    async function SimulateRestOfEvent(n: number, gamestate: GameState, targetPlayerId: string): Promise<number> {
+        var successes: number = 0;
 
+        for (let i = 0; i < n; i++) {
+            var nextGamestate: GameState = gamestate.copy();
+            while(nextGamestate.currentRound <= nextGamestate.minRound) {
+                // Do we already have pairings for the next round? If so, use those. 
+                if (nextGamestate.pairings.length === 0) {
+                    nextGamestate.generateRandomPairings(false);
+                }
+                nextGamestate = await SimulateRound(nextGamestate, ourPersonaId, "win");
+            }
+
+            if (isInTop8(nextGamestate, ourPersonaId)) {
+                successes += 1;
+            }
+
+            if (i % 100 === 0) {
+                setProgress(i/n);
+                await new Promise(f => setTimeout(f, 5)); // Sleep real quick to give the UI a chance to update
+            }
+        }
+        return successes;
     }
 
     // Reach out to remote server and return a GameState object with the latest data
@@ -552,6 +619,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                 // Add a bye player. (We may need even with an even number of entrants, due to drops)
                 var bye = new Player();
                 bye.isBye = true;
+                bye.personaId = "bye"
                 players["bye"] = bye;
 
                 // Go through all past results and calculate game win/loss counts
@@ -627,6 +695,10 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             console.log("Round " + gamestate.currentRound +" of "+ gamestate.minRound);
             if (gamestate.currentRound > 0 && gamestate.currentRound === gamestate.minRound) {
                 SimulateLastRoundOfEvent(1000, gamestate, personaId);
+            } else {
+                const n: number = 1000;
+                const successes = await SimulateRestOfEvent(n, gamestate, personaId);
+                setWinOutOdds(100* (successes / n));
             }
             setProgress(1);
         }
@@ -759,13 +831,18 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         setRefreshing(true);
         setProgress(0);
         var gamestate: GameState = await fetchGameState();
+        const personaId: any = await AsyncStorage.getItem("@ourPersonaId");
         // Run the simulations if it's the last round
         if (gamestate.currentRound === gamestate.minRound)  {
-            const personaId: any = await AsyncStorage.getItem("@ourPersonaId");
             SimulateLastRoundOfEvent(1000, gamestate, personaId);            
         }
+        else{
+            const n: number = 1000;
+            const successes = await SimulateRestOfEvent(n, gamestate, personaId);
+            setWinOutOdds(100* (successes / n));
+        }
         setProgress(1);
-        wait(1000).then(() => setRefreshing(false));
+        setRefreshing(false);
     };
 
     class SimulationResultsArea extends Component {
@@ -824,7 +901,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                             <RefreshControl refreshing={refreshing} onRefresh={onRefresh}>
                                 <View style={styles.container}>
                                     <Text style={styles.titleLabel}>If you were to win out you'd make top 8:...</Text>
-                                    <Text style={styles.titleLabel}>Feature Coming Soon Sorry</Text>
+                                    <Text style={styles.titleLabel}>{winOutOdds}% of the time</Text>
                                 </View>
                             </RefreshControl>
                         </View>
