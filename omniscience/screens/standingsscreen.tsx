@@ -1,18 +1,21 @@
-import { Button, StyleSheet, Text, TextInput, RefreshControl, View, SafeAreaView, TouchableOpacity, FlatList, ViewStyle, TouchableHighlightBase} from 'react-native';
+import { Button, StyleSheet, Text, Pressable, RefreshControl, View, SafeAreaView, TouchableOpacity, FlatList, ViewStyle, TouchableHighlightBase} from 'react-native';
 import React, {Component, useState, useEffect} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { StatusBar } from 'expo-status-bar';
+import { setStatusBarNetworkActivityIndicatorVisible, StatusBar } from 'expo-status-bar';
 import * as Progress from 'react-native-progress';
 
 export function StandingsScreen({route, navigation}: {route: any, navigation: any}) {
     const GRAPHQL_API = "https://api2.tabletop.tiamat-origin.cloud/silverbeak-griffin-service/graphql"
     const OAUTH_API = "https://api.platform.wizards.com/auth/oauth/token"
 
+    const [predictionsData, setPredictionsData] = useState([]);
     const [standingsData, setStandingsData] = useState([]);
-    const [selectedId, setSelectedId] = useState(null);
+    const [selectedId, setSelectedId] = useState("");
+    const [selectedName, setSelectedName] = useState("");
     const [currentRound, setCurrentRound] = useState(0);
     const [minRounds, setMinRounds] = useState(0);
     const [ourPersonaId, setOurPersonaId] = useState('');
+    const [ourName, setOurName] = useState('');
     const [progress, setProgress] = useState(0);
     const [refreshing, setRefreshing] = useState(false);
     // "conversion" rates (ie: chance of top8'ing win win/draw/loss)
@@ -97,6 +100,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         pairings: string[][]
         currentRound: number
         minRound: number
+        roundHistory: any[]
 
         // Make thick copy of the gamestate
         copy(): GameState {
@@ -109,6 +113,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             }
             newGamestate.currentRound = this.currentRound;
             newGamestate.minRound = this.minRound;
+            newGamestate.roundHistory = this.roundHistory;
             return newGamestate;
         }
 
@@ -117,6 +122,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             this.pairings = [];
             this.currentRound = 0;
             this.minRound = 1;
+            this.roundHistory = [];
         }
 
         // Generates new pairings of the players, chosen at random
@@ -240,14 +246,18 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                     dieroll = 0.6;
                     randomdraw = 1;
                 }
-                if (result === "loss") {
+                else if (result === "loss") {
                     // Assume worse case loss (0-2)
                     dieroll = 0.1;
                     randomdraw = 1;
                 } 
-                if (result === "draw") {
+                else if (result === "draw") {
                     randomdraw = 0;
+                } else {
+                    console.log("ERROR: Invalid result:", result);
+                    throw TypeError;
                 }
+
             } else {
                 // If both players are trivially able to draw in, then always make them do that
                 //  It's called a trivial draw in if both players are three more match points or greater above the current 8th place holder
@@ -378,8 +388,10 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         return returnState;
     }
 
-    async function updateStandingsDisplay(gamestate: GameState) {
+    // reset - should we reset the predictions?
+    async function updateStandingsDisplay(gamestate: GameState, resetPredictions: boolean) {
         var standingsArray: any = [];
+        var predictionsArray: any = [];
         // Update the display data structure
         for (let personaId in gamestate.players) {
             const player: Player = gamestate.players[personaId];
@@ -398,6 +410,55 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             }
         }
         setStandingsData(standingsArray);
+        const personaId: any = await AsyncStorage.getItem("@selectedPersonaId");
+
+        if (resetPredictions === true){
+            for (var round of gamestate.roundHistory) {
+                if (Number(round["number"]) < gamestate.roundHistory.length){
+                    const matches: any[] = round["matches"];
+                    for (var match of matches) {
+                        if (match["isBye"] === false){
+                            const personaA: string = match["teams"][0]["players"][0]["personaId"];
+                            const personaB: string = match["teams"][1]["players"][0]["personaId"];
+                            var personaIndex = -1;
+                            if (personaA === personaId) {
+                                personaIndex = 0;
+                            } else if (personaB === personaId) {
+                                personaIndex = 1;
+                            }
+                            if (personaIndex > -1) {
+                                var team = match["teams"][personaIndex];
+                                if (team["results"]){
+                                    const wins = team["results"][0]["wins"];
+                                    const losses = team["results"][0]["losses"];
+                                    if (wins > losses) {
+                                        predictionsArray.push("win");
+                                    } else if (losses > wins) {
+                                        predictionsArray.push("loss");
+                                    } else {
+                                        predictionsArray.push("draw");
+                                    }
+                                }
+                            }
+                        } else {
+                            // This is a bye
+                            const personaA: string = match["teams"][0]["players"][0]["personaId"]
+                            if (personaA === personaId) {
+                                predictionsArray.push("win");
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fill in remaining predictions with wins
+            const roundsleft = gamestate.minRound - predictionsArray.length;
+            for (let i = 0; i < roundsleft; i++){
+                predictionsArray.push("win");
+            }
+            setPredictionsData(predictionsArray);
+            AsyncStorage.setItem('@predictions', JSON.stringify(predictionsArray));
+        }
     }
 
     // Synchronous function returns true if the target player is currently in the top 8 of the given GameState
@@ -507,10 +568,16 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
     }
 
-    // Assuming we're in the middle of an event, simulate target player's odds of top 8'ing, assuming they win out
+    // Assuming we're in the middle of an event, simulate target player's odds of top 8'ing
     // returns the number of successful top 8's (out of n)
-    async function SimulateRestOfEvent(n: number, gamestate: GameState, targetPlayerId: string): Promise<number> {
+    // gamestate - Starting gamestate
+    // results - array of results ("win", "loss", "draw") for the entire event. (length minrounds)
+    // targetPlayerId - string personaId of the player to simulate for
+    async function SimulateRestOfEvent(n: number, gamestate: GameState, results: string[], targetPlayerId: string): Promise<number> {
         var successes: number = 0;
+        if (results.length !== gamestate.minRound) {
+            throw new RangeError(); 
+        }
 
         for (let i = 0; i < n; i++) {
             var nextGamestate: GameState = gamestate.copy();
@@ -519,10 +586,10 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                 if (nextGamestate.pairings.length === 0) {
                     nextGamestate.generateRandomPairings(false);
                 }
-                nextGamestate = await SimulateRound(nextGamestate, ourPersonaId, "win");
+                nextGamestate = await SimulateRound(nextGamestate, targetPlayerId, results[nextGamestate.currentRound-1]);
             }
 
-            if (isInTop8(nextGamestate, ourPersonaId)) {
+            if (isInTop8(nextGamestate, targetPlayerId)) {
                 successes += 1;
             }
 
@@ -594,9 +661,6 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                         }
                     }
                 }
-
-                updateStandingsDisplay(gamestate);
-                await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
                 return gamestate;
             } else {
                 // Build initial players array
@@ -625,6 +689,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                 // Go through all past results and calculate game win/loss counts
                 //      This information is present here in the match history, but not given to us explicitly
                 const rounds: any[] = json["data"]["event"]["gameState"]["rounds"];
+                gamestate.roundHistory = rounds;
                 for (var round of rounds) {
                     if (Number(round["number"]) < rounds.length){
                         const matches: any[] = round["matches"];
@@ -671,9 +736,13 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                 gamestate.players = players;
                 gamestate.pairings = pairings;
 
-                await updateStandingsDisplay(gamestate);
-                await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
-
+                // Pull out "our" title and set it globally
+                for (let playerId in players) {
+                    if (playerId === personaId){
+                        const name = players[playerId].firstName + " " + players[playerId].lastName;
+                        await AsyncStorage.setItem("@ourName", name);
+                    }
+                }
                 return gamestate;
             }
 
@@ -688,7 +757,13 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     useEffect(() => {
         async function doSimulations() {
             var gamestate: GameState = await fetchGameState();
+            await updateStandingsDisplay(gamestate, true);
+            await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
             const personaId: any = await AsyncStorage.getItem("@ourPersonaId");
+            const name: any = await AsyncStorage.getItem("@ourName");
+            AsyncStorage.setItem("@selectedPersonaId", personaId);
+            setSelectedId(personaId);
+            setSelectedName(name);            
             // Run the simulations
             setCurrentRound(gamestate.currentRound);
             setMinRounds(gamestate.minRound);
@@ -696,8 +771,9 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             if (gamestate.currentRound > 0 && gamestate.currentRound === gamestate.minRound) {
                 SimulateLastRoundOfEvent(1000, gamestate, personaId);
             } else {
+                const predictions: string[] = JSON.parse(await AsyncStorage.getItem('@predictions'))
                 const n: number = 1000;
-                const successes = await SimulateRestOfEvent(n, gamestate, personaId);
+                const successes = await SimulateRestOfEvent(n, gamestate, predictions, personaId);
                 setWinOutOdds(100* (successes / n));
             }
             setProgress(1);
@@ -713,9 +789,20 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
           backgroundColor: '#ffffff',
           alignItems: 'center',
         },
-        standingsAreaContainer: {
-            flex: 2,
+        simulationsResultsAreaContainer: {
+            flex: 4,
             backgroundColor: '#ffffff',
+            alignItems: 'center',
+            flexDirection: "row",
+        },        
+        winLossAreaContainer: {
+            flex: .8,
+            backgroundColor: '#ffffff',
+            alignItems: 'center',
+        },
+        standingsAreaContainer: {
+            flex: 3,
+            backgroundColor: '#9999ff',
             alignItems: 'center',
         },
         standingsContainer: {
@@ -725,12 +812,6 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             flexDirection: "row",
         },        
         simulationsResultsContainer: {
-            flex: 1,
-            backgroundColor: '#ffffff',
-            alignItems: 'center',
-            flexDirection: "row",
-        },
-        simulationsResultsAreaContainer: {
             flex: 1,
             backgroundColor: '#ffffff',
             alignItems: 'center',
@@ -765,12 +846,53 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             backgroundColor: '#dddddd',
             alignItems: 'center',
             flexDirection: "row",
+        },
+        winLossSelectorContainer: {
+            flex: 1,
+            backgroundColor: '#ffffff',
+            alignItems: 'center',
+            flexDirection: "row",
+        },        
+        selectedItemContainer: {
+            flex: 1,
+            backgroundColor: '#cccccc',
+            alignItems: 'center',
+            flexDirection: "row",
+        },
+        lossSelectionContainer: {
+            flex: 1,
+            backgroundColor: '#cc0000',
+            alignItems: 'center',
+        },
+        winSelectionContainer: {
+            flex: 1,
+            backgroundColor: '#00cc00',
+            alignItems: 'center',
+        },        
+        drawSelectionContainer: {
+            flex: 1,
+            backgroundColor: '#f5d442',
+            alignItems: 'center',
         },        
         titleLabel: {
           flex: 0,
           fontSize: 20,
           fontWeight: 'bold',
         },
+        resultLabel: {
+            flex: 0,
+            fontSize: 48,
+            fontWeight: 'bold',
+        },
+        winlossLabels: {
+            flex: 0.5,
+            fontSize: 30,
+            fontWeight: 'bold',
+        },
+        winLossRoundCountLabel: {
+            flex: 1,
+            fontSize: 20,
+        },        
         headerItem: {
             fontSize: 16,
             fontWeight: 'bold',
@@ -784,7 +906,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
 
     const Item = ({ personaId, rank, title, matchPoints, omw, gwp, ogw, onPress, backgroundColor, textColor }: {personaId: string, rank: number, title: string, matchPoints: number, omw: number, gwp: number, ogw: number, onPress: any, backgroundColor: any, textColor: any}) => (
         <TouchableOpacity onPress={onPress} style={[styles.item, backgroundColor]}>
-            <View style={personaId === ourPersonaId ? styles.ourItemContainer : styles.itemContainer}>
+            <View style={personaId === ourPersonaId ? styles.ourItemContainer : (personaId === selectedId ? styles.selectedItemContainer : styles.itemContainer)}>
                 <Text style={[styles.item, textColor]}>{rank}</Text>
                 <Text style={[styles.item, textColor]}>{title}</Text>
                 <Text style={[styles.item, textColor]}>{matchPoints}</Text>
@@ -794,6 +916,27 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             </View>
         </TouchableOpacity>
     );
+
+    async function onPressPlayer(id: string) {
+        setRefreshing(true);
+        setProgress(0);
+        var gamestate: GameState = await fetchGameState();
+        await updateStandingsDisplay(gamestate, true);
+        await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
+        // Run the simulations if it's the last round
+        if (gamestate.currentRound === gamestate.minRound)  {
+            SimulateLastRoundOfEvent(1000, gamestate, id);            
+        }
+        else {
+            const predictions: string[] = JSON.parse(await AsyncStorage.getItem('@predictions'))
+            const n: number = 1000;
+            const successes = await SimulateRestOfEvent(n, gamestate, predictions, id);
+            setWinOutOdds(100* (successes / n));
+        }
+        setProgress(1);
+        setRefreshing(false);
+    }
+
     const renderItem = ({ item }: {item: any}) => (
         <Item 
             rank={item.rank}
@@ -803,8 +946,11 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             gwp={item.gwp}
             ogw={item.ogw}
             onPress={() => {
-                setSelectedId(item.id); 
-                console.log("selecting player: " + item.id)
+                AsyncStorage.setItem("@selectedPersonaId", item.id);
+                setSelectedId(item.id);
+                setSelectedName(item.title);
+                onPressPlayer(item.id);
+                console.log("selecting player: ", item.id)
             }}
             backgroundColor={"#6e3b6e"}
             textColor={"black"}
@@ -827,27 +973,42 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     const wait = (timeout: number) => {
         return new Promise(resolve => setTimeout(resolve, timeout));
     }
+
+    // Clear out any state and start over
     async function onRefresh() {
-        setRefreshing(true);
-        setProgress(0);
-        var gamestate: GameState = await fetchGameState();
         const personaId: any = await AsyncStorage.getItem("@ourPersonaId");
+        const name: any = await AsyncStorage.getItem("@ourName");
+        AsyncStorage.setItem("@selectedPersonaId", personaId);
+        setSelectedId(personaId);
+        setSelectedName(name);
+        await recalculate(true);
+    };
+
+    // Recalculate results, but don't change selections
+    async function recalculate(resetPredictions: boolean) {
+        setProgress(0);
+        setRefreshing(true);
+        const personaId: any = await AsyncStorage.getItem("@selectedPersonaId");
+        var gamestate: GameState = await fetchGameState();
+        await updateStandingsDisplay(gamestate, resetPredictions);
+        await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update        
         // Run the simulations if it's the last round
         if (gamestate.currentRound === gamestate.minRound)  {
             SimulateLastRoundOfEvent(1000, gamestate, personaId);            
         }
         else{
+            const predictions: string[] = JSON.parse(await AsyncStorage.getItem('@predictions'))
             const n: number = 1000;
-            const successes = await SimulateRestOfEvent(n, gamestate, personaId);
+            const successes = await SimulateRestOfEvent(n, gamestate, predictions, personaId);
             setWinOutOdds(100* (successes / n));
         }
-        setProgress(1);
         setRefreshing(false);
-    };
+        setProgress(1);
+    }
 
     class SimulationResultsArea extends Component {
         render(){
-            if (progress >= 1){     
+            if (progress >= 1){
                 if (currentRound === minRounds){
                     return (
                         <View style={styles.simulationsResultsAreaContainer}>
@@ -887,27 +1048,19 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                             </RefreshControl>        
                         </View>
                     )
-                } else if (currentRound === 1) {
-                    return (
-                        <View style={styles.container}>
-                            <RefreshControl refreshing={refreshing} onRefresh={onRefresh}>
-                                <Text style={styles.titleLabel}>It's just the first round. Anything is possible! Come back later.</Text>
-                            </RefreshControl>
-                        </View>
-                    )
                 } else {
                     return (
                         <View style={styles.container}>
                             <RefreshControl refreshing={refreshing} onRefresh={onRefresh}>
                                 <View style={styles.container}>
-                                    <Text style={styles.titleLabel}>If you were to win out you'd make top 8:...</Text>
-                                    <Text style={styles.titleLabel}>{winOutOdds}% of the time</Text>
+                                    <Text style={styles.titleLabel}>{selectedName}</Text>
+                                    <Text style={styles.resultLabel}>{winOutOdds}%</Text>
+                                    <Text style={styles.titleLabel}>Chance of making top 8</Text>
                                 </View>
                             </RefreshControl>
                         </View>
                     )
                 }
-
             } else {
                 return (
                     <View style={styles.container}>
@@ -918,6 +1071,112 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             }
         }        
     };
+
+    type WinLossProps = {
+        result: string;
+        round: number;
+    };
+
+    class WinLossButton extends Component<WinLossProps> {
+        constructor(props: WinLossProps) {
+            super(props);
+            this.state = {
+              result: props.result,
+            };
+        }
+
+        render(){
+            if (this.state.result === "loss"){
+                return (
+                    <View style={styles.lossSelectionContainer}>
+                        <Pressable onPress={() => {
+                            if (this.props.round+1 >= currentRound){
+                                const predictions: string[] = predictionsData;
+                                predictions[this.props.round] = "draw";
+                                this.setState({ result: "draw"})
+                                setPredictionsData(predictions);
+                                AsyncStorage.setItem('@predictions', JSON.stringify(predictions));
+                                recalculate(false);
+                            }
+                        }}>                  
+                            <Text style={styles.winlossLabels}>Loss</Text>
+                            <Text style={styles.winLossRoundCountLabel}>Round {this.props.round+1}</Text>
+                        </Pressable>
+                    </View> 
+                );
+            } else if (this.state.result === "win"){
+                return (
+                    <View style={styles.winSelectionContainer}>
+                        <Pressable onPress={() => {
+                            if (this.props.round+1 >= currentRound){
+                                const predictions: boolean[] = predictionsData;
+                                predictions[this.props.round] = "loss";
+                                this.setState({ result: "loss"})
+                                setPredictionsData(predictions);
+                                AsyncStorage.setItem('@predictions', JSON.stringify(predictions));
+                                recalculate(false);
+                            }
+                        }}>
+                            <Text style={styles.winlossLabels}>Win</Text>
+                            <Text style={styles.winLossRoundCountLabel}>Round {this.props.round+1}</Text>
+                        </Pressable> 
+                    </View>    
+                )            
+            }
+            else {
+                return (
+                    <View style={styles.drawSelectionContainer}>
+                        <Pressable onPress={() => {
+                            if (this.props.round+1 >= currentRound){
+                                const predictions: boolean[] = predictionsData;
+                                predictions[this.props.round] = "win";
+                                this.setState({ result: "win"})
+                                setPredictionsData(predictions);
+                                AsyncStorage.setItem('@predictions', JSON.stringify(predictions));
+                                recalculate(false);
+                            }
+                        }}>
+                            <Text style={styles.winlossLabels}>Draw</Text>
+                            <Text style={styles.winLossRoundCountLabel}>Round {this.props.round+1}</Text>
+                        </Pressable> 
+                    </View>    
+                )            
+            }            
+
+        }
+    }
+
+    class WinLossSelectorArea extends Component {
+        constructor(props: any) {
+            super(props);
+            this.state = {
+              predictions: props.predictions,
+            };
+        }
+
+        renderWinLossButtons = () => {
+            return this.state.predictions.map((result, roundNumber) => (
+                <WinLossButton key={roundNumber} round={roundNumber} result={result}/>
+            ))
+        }
+
+        render(){
+            if (currentRound < minRounds){
+                return (
+                    <View style={styles.winLossAreaContainer}>     
+                        <View style={styles.winLossSelectorContainer}>
+                            {this.renderWinLossButtons()}
+                        </View>
+                    </View>
+                );
+            }
+            else{
+                return (
+                    <View/>
+                );
+            }
+        }
+    }
 
     class StandingsArea extends Component {
         render(){
@@ -945,6 +1204,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     return (
         <View style={styles.container}>
             <SimulationResultsArea/>
+            <WinLossSelectorArea predictions={predictionsData}/>
             <StandingsArea/>
         </View>
     );
