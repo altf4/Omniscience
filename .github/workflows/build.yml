@@ -2,6 +2,7 @@ name: build-android-apk
 on: [push]
 jobs:
   install-and-test:
+    using: 'node16'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
