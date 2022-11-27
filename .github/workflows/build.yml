@@ -2,12 +2,11 @@ name: build-android-apk
 on: [push]
 jobs:
   install-and-test:
-    using: 'node16'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Install npm dependencies TEST
-        run: cd omniscience && npm install
+        run: cd omniscience && npm install && npm test
   # build-android:
   #   needs: install-and-test
   #   runs-on: ubuntu-latest  
