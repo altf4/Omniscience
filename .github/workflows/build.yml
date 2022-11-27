@@ -5,8 +5,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Install dependencies
-        run: cd omniscience && yarn install
+      - name: Install dependencies and run test cases
+        run: cd omniscience && yarn install && yarn test
   # build-android:
   #   needs: install-and-test
   #   runs-on: ubuntu-latest  
