@@ -1,5 +1,3 @@
-import { TouchableHighlightBase } from "react-native";
-
 // Represents a single player in an event, (can be a "bye" player, doensn't have to be a person)
 export class Player {
     wins: number;
@@ -113,13 +111,14 @@ export class GameState {
     }
 
     // Generates new pairings of the players, chosen at random
-    // isFinalRound - When it's the final round, pairings don't happen randomly, they happen in rank order
-    generateRandomPairings(isFinalRound: boolean) {
+    generateRandomPairings() {
         const playersArray = this.getSortedPlayers();
         var alreadyPaired: string[] = [];
         this.pairings = [];
     
-        // For each player, find thier best match. Starting with the top.
+        //TODO const isFinalRound = When it's the final round, pairings don't happen randomly, they happen in rank order
+
+        // For each player, find their best match. Starting with the top.
         for (let player of playersArray) {
             // Shortcut out if this player is already paired.
             if(!alreadyPaired.includes(player.personaId)) {               
@@ -200,8 +199,7 @@ export class GameState {
 }
 
 // Simulates one round of results in the given GameState, returning a new GameState representing those results
-//  originalPlayers - dict of personaId -> Player
-//  pairings - array of personaId pairs
+//  gamestate - GameState object to start from.
 //  targetPlayer - personaId of the player to simulate for
 //  result - One of "win", "draw", or "loss"
 export async function SimulateRound(gamestate: GameState, targetPlayer: string, result: string): Promise<GameState> {
@@ -211,6 +209,11 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
         players[player] = {...gamestate.players[player]};
     }
 
+    // Generate pairings if it doesn't exist already yet
+    if (gamestate.pairings.length === 0) {
+        gamestate.generateRandomPairings()
+    }
+
     for (let pairing in gamestate.pairings) {
         var playerA: Player = players[gamestate.pairings[pairing][0]];
         var playerB: Player = players[gamestate.pairings[pairing][1]];
@@ -218,6 +221,12 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
         var dieroll = Math.random();
         var randomdraw = Math.random();
         var isBye: boolean = false;
+
+        if (playerA === undefined){
+            console.log(players)
+            console.log(gamestate.pairings)
+            console.log(gamestate.pairings[pairing])
+        }
 
         // Use the prescripted result if this is the target user
         if (targetPlayer === playerA.personaId || targetPlayer === playerB.personaId) {
@@ -333,6 +342,9 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
                 playerB.gameLosses += 2
             }
         }
+        // Add each other to their respective opponents list
+        playerA.opponents.push(playerB.personaId);
+        playerB.opponents.push(playerA.personaId);
     }
     // Recalculate breakers now that the round has finished
     for (let playerId in players) {
@@ -351,9 +363,6 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
                     gamescores.push(Math.max(1/3, gameWinRate));
                 }
             }
-            // Once we're done, clear out the opponent list (since we'll be returning this)
-            player.opponents = [];
-
             // Average out the match and game scores
             matchscores.forEach((element) => {
                 player.opponentMatchWinPercent += element;
@@ -368,7 +377,16 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
         }
     }
 
+    // Recalculate rank
+    const playersArray = gamestate.getSortedPlayers();
+    var rank = 1;
+    for (let player of playersArray) {
+        players[player.personaId].rank = rank;
+        rank += 1;
+    }
+
     var returnState: GameState = new GameState();
+    returnState.pairings = []
     returnState.players = players;
     returnState.currentRound = gamestate.currentRound + 1;
     returnState.minRound = gamestate.minRound;

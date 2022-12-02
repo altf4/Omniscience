@@ -253,7 +253,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             while(nextGamestate.currentRound <= nextGamestate.minRound) {
                 // Do we already have pairings for the next round? If so, use those. 
                 if (nextGamestate.pairings.length === 0) {
-                    nextGamestate.generateRandomPairings(false);
+                    nextGamestate.generateRandomPairings();
                 }
                 nextGamestate = await SimulateRound(nextGamestate, targetPlayerId, results[nextGamestate.currentRound-1]);
             }
