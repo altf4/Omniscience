@@ -87,6 +87,33 @@ export class GameState {
     minRound: number
     roundHistory: any[]
 
+    toJSON(): string {
+        var jsonstring = JSON.stringify(
+            {
+                players: this.players,
+                pairings: this.pairings,
+                minRound: this.minRound,
+                currentRound: this.currentRound,
+                roundHistory: this.roundHistory,
+            }
+        );
+
+        return jsonstring;
+    }
+
+    fromJSON(jsonBlob: string) {
+        let jsonObject = JSON.parse(jsonBlob);
+        
+        for (let key in jsonObject.players) {
+            this.players[key] = JSON.parse(jsonObject.players[key])
+        }
+            
+        this.pairings = jsonObject.pairings;
+        this.minRound = jsonObject.minRound;
+        this.currentRound = jsonObject.currentRound;
+        this.roundHistory = jsonObject.roundHistory;
+    }
+
     // Make thick copy of the gamestate
     copy(): GameState {
         var newGamestate: GameState = new GameState();

@@ -62,6 +62,31 @@ test('import / export players', () => {
     expect(playerC.isBye).toBe(false)
 });
 
+test('import / export gamestate', () => {
+    var gamestateA: GameState = new GameState();
+    // Saturate it with 16 players
+    var rank: number = 1;
+    for (let i = 0; i < 16; i++){
+        var player = new Player();
+        player.personaId = "personaId" + i;
+        player.firstName = "first" + i;
+        player.lastName = "last" + i;
+        player.rank = rank;
+        rank += 1;
+        gamestateA.players[player.personaId] = player;
+    }
+    gamestateA.currentRound = 1
+    gamestateA.generateRandomPairings()
+    const gamestate_js = gamestateA.toJSON()
+    expect(gamestate_js.length).toBeGreaterThan(0);
+
+    var gamestateB: GameState = new GameState();
+    gamestateB.fromJSON(gamestate_js)
+    expect(gamestateB.pairings.length).toBe(8)
+    expect(gamestateB.players["personaId7"].firstName).toBe("first7")
+});
+
+
 test('1000 random pairings from blank', async () => {
     var gamestate: GameState = new GameState();
     var rank: number = 1;
