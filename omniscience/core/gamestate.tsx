@@ -145,10 +145,10 @@ export class GameState {
     
         //TODO const isFinalRound = When it's the final round, pairings don't happen randomly, they happen in rank order
 
-        // For each player, find their best match. Starting with the top.
+        // For each player, find a match. Starting with the top.
         for (let player of playersArray) {
             // Shortcut out if this player is already paired.
-            if(!alreadyPaired.includes(player.personaId)) {               
+            if(!alreadyPaired.includes(player.personaId)) {
                 var matchPoints: number = player.matchPoints;
                 for (var i = matchPoints; i >= 0; i--) {
                     var potentialOpponents: string[] = this.getPlayersWithPoints(i);
@@ -174,7 +174,6 @@ export class GameState {
                         // If there's nobody else to pair against and we've gone through every match point value, then pair up against bye
                         this.pairings.push(["bye", player.personaId])
                         alreadyPaired.push(player.personaId);
-                        alreadyPaired.push("bye");
                     }
                 }
             }
@@ -205,7 +204,7 @@ export class GameState {
                 // First breaker: Opponent Match Win Percent
                 if(a.opponentMatchWinPercent === b.opponentMatchWinPercent) {
                     // Second breaker: Game win percent
-                    if(a.opponentMatchWinPercent === b.opponentMatchWinPercent) {
+                    if(a.gameWinPercent === b.gameWinPercent) {
                         // Third breaker: Opponent game win percent
                         return a.opponentGameWinPercent > b.opponentGameWinPercent ? -1 : 1;
                         // What to do if this is STILL tied? Unclear. But it ought to be pretty rare
@@ -250,9 +249,10 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
         var isBye: boolean = false;
 
         if (playerA === undefined){
-            console.log(players)
-            console.log(gamestate.pairings)
-            console.log(gamestate.pairings[pairing])
+            // console.log(players)
+            // console.log(gamestate.pairings)
+            // console.log(gamestate.pairings[pairing])
+            console.log(gamestate.toJSON())
         }
 
         // Use the prescripted result if this is the target user
@@ -277,8 +277,7 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
             else if (result === "draw") {
                 randomdraw = 0;
             } else {
-                console.log("ERROR: Invalid result:", result);
-                throw TypeError;
+                throw TypeError();
             }
 
         } else {
@@ -404,17 +403,17 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
         }
     }
 
+    var returnState: GameState = new GameState();
+    returnState.players = players;
+
     // Recalculate rank
-    const playersArray = gamestate.getSortedPlayers();
+    const playersArray = returnState.getSortedPlayers();
     var rank = 1;
     for (let player of playersArray) {
-        players[player.personaId].rank = rank;
+        returnState.players[player.personaId].rank = rank;
         rank += 1;
     }
-
-    var returnState: GameState = new GameState();
     returnState.pairings = []
-    returnState.players = players;
     returnState.currentRound = gamestate.currentRound + 1;
     returnState.minRound = gamestate.minRound;
     return returnState;
