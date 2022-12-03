@@ -155,7 +155,9 @@ export class GameState {
                     var notOpponents: string[] = []; // same as above, but with all previous opponents removed 
                     for (let opponent of potentialOpponents) {
                         // remove anyone this player has already played against, and anyone in the alreadyPaired list
-                        if (!player.opponents.includes(opponent) && !alreadyPaired.includes(opponent)) {
+                        //TODO This has the effect of refusing to give a player a bye twice. Which is probably correct, but will just simply FAIL to pair them
+                        // up against anyone if that's the only option.
+                        if (!player.opponents.includes(opponent) && !alreadyPaired.includes(opponent)) { 
                             // Don't pair against yourself
                             if (opponent !== player.personaId) {
                                 notOpponents.push(opponent);
@@ -170,8 +172,12 @@ export class GameState {
                         alreadyPaired.push(player.personaId);
                         alreadyPaired.push(randomPlayer);
                         break;
-                    } else if (matchPoints === 0) {
-                        // If there's nobody else to pair against and we've gone through every match point value, then pair up against bye
+                    // If there's nobody else to pair against and we've gone through every match point value, then pair up against bye
+                    } else if (matchPoints === 0 || i === 0) { // TODO this isn't correct. matchPoints should be checked against the lowest amongst real players. Not 0
+                        this.pairings.push(["bye", player.personaId])
+                        alreadyPaired.push(player.personaId);
+                    // If there's only one player left, give them a bye regardless of other circumstances
+                    } else if (alreadyPaired.length === playersArray.length-1) { 
                         this.pairings.push(["bye", player.personaId])
                         alreadyPaired.push(player.personaId);
                     }
@@ -241,6 +247,11 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
     }
 
     for (let pairing in gamestate.pairings) {
+        // Make up a bye player here in case we need one
+        var byePlayer: Player = new Player()
+        byePlayer.isBye = true
+        byePlayer.personaId = "bye"
+
         var playerA: Player = players[gamestate.pairings[pairing][0]];
         var playerB: Player = players[gamestate.pairings[pairing][1]];
 
@@ -248,11 +259,10 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
         var randomdraw = Math.random();
         var isBye: boolean = false;
 
+        // This will happen if we get a bye in an even-numbered player event
+        //      But only for playerA since byes are always shown first
         if (playerA === undefined){
-            // console.log(players)
-            // console.log(gamestate.pairings)
-            // console.log(gamestate.pairings[pairing])
-            console.log(gamestate.toJSON())
+            playerA = byePlayer;
         }
 
         // Use the prescripted result if this is the target user
@@ -299,7 +309,7 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
         }
         
         // If one of the players is "bye", then handle that separately
-        if ("bye" === playerA.personaId || "bye" === playerB.personaId) {
+        if (playerA.isBye || playerB.isBye) {
             // Set playerA to the non-bye player
             if ("bye" === gamestate.pairings[pairing][0]){
                 playerA = players[gamestate.pairings[pairing][1]];
