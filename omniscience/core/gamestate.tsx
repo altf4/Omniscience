@@ -259,10 +259,11 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
         var randomdraw = Math.random();
         var isBye: boolean = false;
 
-        // This will happen if we get a bye in an even-numbered player event
-        //      But only for playerA since byes are always shown first
-        if (playerA === undefined){
+        if (playerA === undefined) {
             playerA = byePlayer;
+        }
+        if (playerB === undefined) {
+            playerB = byePlayer;
         }
 
         // Use the prescripted result if this is the target user
@@ -273,6 +274,9 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
                 playerB = players[gamestate.pairings[pairing][1]];
             } else {
                 playerB = players[gamestate.pairings[pairing][0]];
+            }
+            if (playerB === undefined) {
+                playerB = byePlayer;
             }
             if (result === "win") {
                 // Assume worst case win (2-1)
@@ -287,7 +291,7 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
             else if (result === "draw") {
                 randomdraw = 0;
             } else {
-                throw TypeError();
+                throw TypeError("Needs to be 'win', 'loss', or 'draw': " + result);
             }
 
         } else {
@@ -307,7 +311,7 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
                 isBye = true; // Not technically a bye, I guess. But makes us skip the random results logic below
             }
         }
-        
+    
         // If one of the players is "bye", then handle that separately
         if (playerA.isBye || playerB.isBye) {
             // Set playerA to the non-bye player
@@ -427,4 +431,55 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
     returnState.currentRound = gamestate.currentRound + 1;
     returnState.minRound = gamestate.minRound;
     return returnState;
+}
+
+// Assuming we're in the middle of an event, discover target player's odds of top 8'ing
+// returns the number of successful top 8's (out of n)
+// n - Number of iterations to try
+// gamestate - Starting gamestate
+// results - array of results ("win", "loss", "draw") for the entire event. (length minrounds)
+// targetPlayerId - string personaId of the player to simulate for
+export async function SimulateEvent(n: number, gamestate: GameState, results: string[], targetPlayerId: string, progressCallback: (percent: number) => null): Promise<number> {
+    var successes: number = 0;
+    if (results.length !== gamestate.minRound) {
+        throw new RangeError(); 
+    }
+
+    for (let i = 0; i < n; i++) {
+        var nextGamestate: GameState = gamestate.copy();
+        while(nextGamestate.currentRound < nextGamestate.minRound) {
+            // Do we already have pairings for the next round? If so, use those. 
+            if (nextGamestate.pairings.length === 0) {
+                nextGamestate.generateRandomPairings();
+            }
+            nextGamestate = await SimulateRound(nextGamestate, targetPlayerId, results[nextGamestate.currentRound]);
+        }
+
+        if (isInTop8(nextGamestate, targetPlayerId)) {
+            successes += 1;
+        }
+
+        if (i % 100 === 0) {
+            if (progressCallback !== undefined) {
+                progressCallback(i/n);
+            }
+        }
+    }
+    return successes;
+}
+
+// Synchronous function returns true if the target player is currently in the top 8 of the given GameState
+function isInTop8(gamestate: GameState, targetPlayer: string): boolean {
+    // Flatten players map into array
+    var playersArray: Player[] = gamestate.getSortedPlayers();     
+    // Just get the top 8
+    const top8: Player[] = playersArray.slice(0, 8)
+
+    for (let index in top8) {
+        const player: Player = playersArray[index];
+        if (targetPlayer === player.personaId){
+            return true;
+        }
+    }
+    return false;
 }

@@ -237,8 +237,9 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
     }
 
-    // Assuming we're in the middle of an event, simulate target player's odds of top 8'ing
+    // Assuming we're in the middle of an event, discover target player's odds of top 8'ing
     // returns the number of successful top 8's (out of n)
+    // n - Number of iterations to try
     // gamestate - Starting gamestate
     // results - array of results ("win", "loss", "draw") for the entire event. (length minrounds)
     // targetPlayerId - string personaId of the player to simulate for
