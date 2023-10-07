@@ -4,7 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const EventsScreen = ({navigation}: {navigation: any}) => {
     const OAUTH_API = "https://api.platform.wizards.com/auth/oauth/token"
-    const GRAPHQL_API = "https://api2.tabletop.tiamat-origin.cloud/silverbeak-griffin-service/graphql"
+    // const GRAPHQL_API = "https://api2.tabletop.tiamat-origin.cloud/silverbeak-griffin-service/graphql"
+    const GRAPHQL_API = "https://api.tabletop.wizards.com/silverbeak-griffin-service/graphql"
 
     var [accessToken, setAccessToken] = useState('');
     const [selectedId, setSelectedId] = useState(null);
@@ -69,6 +70,7 @@ export const EventsScreen = ({navigation}: {navigation: any}) => {
                 }),
             });
             const json = await response.json();
+            console.log(json)
             if (response.status == 200) {
                 var events: any[] = [];
                 for (let event of json["data"]["myActiveEvents"]) {

@@ -86,7 +86,7 @@ test('import / export gamestate', () => {
     expect(gamestateB.players["personaId7"].firstName).toBe("first7")
 });
 
-test('thick copy gamestate', () => {
+test('thick copy gamestate', async () => {
     var gamestateA: GameState = new GameState();
     gamestateA.minRound = 7;
     // Saturate it with 16 players
@@ -112,7 +112,17 @@ test('thick copy gamestate', () => {
     for (let i = 0; i < gamestateA.pairings.length; i++) {
         expect(gamestateA.pairings[i]).toStrictEqual(gamestateB.pairings[i])
     }
-    
+
+    // Now modify gamestateA, and make sure it doesn't also happen to gamestateB
+    gamestateA.minRound = 11
+    expect(gamestateB.minRound).toBe(7)
+    var gamestateA1 = await SimulateRound(gamestateA, "personaId4", "win")
+    var gamestateA2 = await SimulateRound(gamestateA1, "personaId4", "win")
+    expect(gamestateA2.players["personaId4"].opponents.length).toBe(2)
+    expect(gamestateA1.players["personaId4"].opponents.length).toBe(1)
+    expect(gamestateA.players["personaId4"].opponents.length).toBe(0)
+    expect(gamestateB.players["personaId4"].opponents.length).toBe(0)
+
 });
 
 test('sorting players', () => {
@@ -382,6 +392,30 @@ test('simulate whole event', async () => {
     }
 
     console.log(await SimulateEvent(100, gamestate, ["win", "win", "draw", "draw"], "personaId2", undefined))
+});
+
+test('bad results length', async () => {
+    var gamestate: GameState = new GameState();
+    expect(gamestate).not.toBeNull();
+
+    gamestate.minRound = 4;
+    var rank: number = 1;
+    for (let i = 0; i < 16; i++){
+        var player = new Player();
+        player.personaId = "personaId" + i;
+        player.firstName = "first" + i;
+        player.lastName = "last" + i;
+        player.rank = rank;
+        rank += 1;
+        gamestate.players[player.personaId] = player;
+    }
+
+    try{
+        await SimulateEvent(100, gamestate, ["win", "win", "draw"], "personaId2", undefined)
+    } catch (err: unknown) {
+        expect(err).toBeInstanceOf(RangeError)
+    }
+
 });
 
 // TODO: Test if wizards' pairings tries to avoid double pair-down

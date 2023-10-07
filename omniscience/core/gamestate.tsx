@@ -118,7 +118,10 @@ export class GameState {
     copy(): GameState {
         var newGamestate: GameState = new GameState();
         for (let player in this.players) {
-            newGamestate.players[player] = {...this.players[player]};
+            // newGamestate.players[player] = {...this.players[player]};
+            var newPlayer = new Player()
+            newPlayer.fromJSON(this.players[player].toJSON())
+            newGamestate.players[player] = newPlayer
         }
         for (let pairing of this.pairings) {
             newGamestate.pairings.push([pairing[0], pairing[1]]);
@@ -238,7 +241,9 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
     // Make a copy of the players dict since we're going to be mutating it
     var players: {[personaId: string] : Player} = {};
     for (let player in gamestate.players) {
-        players[player] = {...gamestate.players[player]};
+        var newPlayer = new Player()
+        newPlayer.fromJSON(gamestate.players[player].toJSON())
+        players[player] = newPlayer
     }
 
     // Generate pairings if it doesn't exist already yet
@@ -304,11 +309,13 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
                     break;
                 }
             }
-            const cutoffScore: number = players[eighthPlace].matchPoints;
-            if (playerA.matchPoints - 2 > cutoffScore && playerB.matchPoints - 2 > cutoffScore) {
-                playerA.draws += 1;
-                playerB.draws += 1;
-                isBye = true; // Not technically a bye, I guess. But makes us skip the random results logic below
+            if (eighthPlace != "") {
+                const cutoffScore: number = players[eighthPlace].matchPoints;
+                if (playerA.matchPoints - 2 > cutoffScore && playerB.matchPoints - 2 > cutoffScore) {
+                    playerA.draws += 1;
+                    playerB.draws += 1;
+                    isBye = true; // Not technically a bye, I guess. But makes us skip the random results logic below
+                }
             }
         }
     
