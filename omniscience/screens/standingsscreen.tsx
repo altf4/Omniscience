@@ -182,7 +182,6 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         for (let i = 0; i < n; i++) { 
             const newGameState: GameState = await SimulateRound(gamestate, targetPlayerId, "draw");
             successes += Number(isInTop8(newGameState, targetPlayerId));
-            // console.log("score after draw: " + newGameState.players[targetPlayerId].matchPoints);
         }
         console.log("With a draw: " + successes);
         setOurConversionRateDraw(Math.round(10000 * (successes / n))  / 100);
@@ -287,9 +286,9 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             navigation.navigate("Login");                    
         }
         const access_token = await AsyncStorage.getItem("@access_token");
-        const request: string = "query loadEvent($eventId: ID!) { event(id: $eventId) { __typename ...Event } }  fragment EventFormat on EventFormat { id name includesDraft includesDeckbuilding }  fragment Registration on Registration { id personaId displayName firstName lastName }  fragment User on User { personaId displayName firstName lastName }  fragment Result on TeamResult { draws isPlayoffResult submitter isFinal isTO isBye wins losses teamId }  fragment Team on Team { id name players { __typename ...User } results { __typename ...Result } }  fragment Seats on Seat { number personaId displayName firstName lastName team { __typename ...Team } }  fragment Pod on Pod { number seats { __typename ...Seats } }  fragment Match on Match { id isBye teams { __typename ...Team } leftTeamWins rightTeamWins tableNumber }  fragment Round on Round { id number isFinalRound isCertified matches { __typename ...Match } canRollback timerID }  fragment Drop on Drop { teamId roundNumber }  fragment GameState on GameState { id minRounds pods { __typename ...Pod } top8Pods { __typename ...Pod } constructedSeats { __typename ...Seats } currentRoundNumber currentRound { __typename ...Round } rounds { __typename ...Round } drops { __typename ...Drop } draftTimerID constructDraftTimerID top8DraftTimerID gamesToWin }  fragment Reservation on Registration { personaId displayName firstName lastName }  fragment TeamFields on TeamPayload { id eventId teamCode isLocked isRegistered registrations { __typename ...Registration } reservations { __typename ...Reservation } }  fragment Event on Event { id title pairingType status shortCode isOnline createdBy requiredTeamSize eventFormat { __typename ...EventFormat } registeredPlayers { __typename ...Registration } gameStateAtRound(round: 0) { __typename ...GameState } teams { __typename ...TeamFields } }";
-        // const request: string = "query loadEvent($eventId: ID!) {event(id: $eventId) { ...Event __typename } } fragment Event on Event { __typename id venue { ...Venue __typename } title description format limitedSet rulesEnforcementLevel pairingType entryFee { __typename amount currency } scheduledStartTime actualStartTime estimatedEndTime actualEndTime status capacity numberOfPlayers shortCode tags latitude longitude address timeZone phoneNumber emailAddress startingTableNumber hasTop8 isAdHoc isOnline createdBy requiredTeamSize groupId cardSet { __typename id name releaseDate } eventFormat { ...EventFormat __typename } registeredPlayers { ...Registration __typename } gameState { ...GameState __typename } teams { ...TeamFields __typename } } fragment Venue on Venue { __typename id name latitude longitude address streetAddress city state country postalCode timeZone phoneNumber emailAddress googlePlaceId capacity notes isApproved } fragment EventFormat on EventFormat { __typename id name blurb requiresSetSelection includesDraft includesDeckbuilding wizardsOnly color } fragment Registration on Registration { __typename id status personaId displayName firstName lastName preferredTableNumber } fragment GameState on GameState { __typename id minRounds pods { ...Pod __typename } top8Pods { ...Pod __typename } draftTimerStartTime draftTimerExpirationTime draftEndTime top8DraftTimerStartTime top8DraftTimerExpirationTime top8DraftEndTime constructionTimerStartTime constructionTimerExpirationTime constructionTimeEndTime constructedSeats { ...Seats __typename } currentRoundNumber currentRound { ...Round __typename } rounds { ...Round __typename } standings { ...Standings __typename } drops { ...Drop __typename } nextRoundMeta { ...RoundMetaData __typename } podPairingType draftTimerID  constructDraftTimerID top8DraftTimerID gamesToWin } fragment Pod on Pod { __typename number seats { ...Seats __typename } } fragment Seats on Seat { __typename number personaId displayName firstName lastName team { ...Team __typename } } fragment Team on Team { __typename id cacheId name players { ...User __typename } results { ...Result __typename } } fragment User on User { __typename personaId displayName firstName lastName } fragment Result on TeamResult { __typename draws isPlayoffResult submitter isFinal isTO isBye wins losses teamId } fragment Round on Round { __typename id number isFinalRound isPlayoff isCertified actualStartTime actualEndTime roundTimerExpirationTime matches { ...Match __typename } pairingStrategy canRollback timerID } fragment Match on Match { __typename id cacheId isBye teams { ...Team __typename } leftTeamWins rightTeamWins isLeftTeamDropped isRightTeamDropped tableNumber } fragment Standings on TeamStanding { __typename team { ...Team __typename } rank wins losses draws byes matchPoints gameWinPercent opponentGameWinPercent opponentMatchWinPercent } fragment Drop on Drop { __typename teamId roundNumber } fragment RoundMetaData on RoundMetadata { __typename hasDraft hasDeckConstruction } fragment TeamFields on TeamPayload { __typename id eventId teamCode isLocked isRegistered registrations { ...Registration __typename } reservations { ...Reservation __typename } } fragment Reservation on Registration { __typename status personaId displayName firstName lastName preferredTableNumber }"
-        const load_standings_payload = {
+        // const request: string = "query loadEvent($eventId: ID!) { event(id: $eventId) { __typename ...Event } }  fragment EventFormat on EventFormat { id name includesDraft includesDeckbuilding }  fragment Registration on Registration { id personaId displayName firstName lastName }  fragment User on User { personaId displayName firstName lastName }  fragment Result on TeamResult { draws isPlayoffResult submitter isFinal isTO isBye wins losses teamId }  fragment Team on Team { id name players { __typename ...User } results { __typename ...Result } }  fragment Seats on Seat { number personaId displayName firstName lastName team { __typename ...Team } }  fragment Pod on Pod { number seats { __typename ...Seats } }  fragment Match on Match { id isBye teams { __typename ...Team } leftTeamWins rightTeamWins tableNumber }  fragment Round on Round { id number isFinalRound isCertified matches { __typename ...Match } canRollback timerID }  fragment Drop on Drop { teamId roundNumber }  fragment GameState on GameState { id minRounds pods { __typename ...Pod } top8Pods { __typename ...Pod } constructedSeats { __typename ...Seats } currentRoundNumber currentRound { __typename ...Round } rounds { __typename ...Round } drops { __typename ...Drop } draftTimerID constructDraftTimerID top8DraftTimerID gamesToWin }  fragment Reservation on Registration { personaId displayName firstName lastName }  fragment TeamFields on TeamPayload { id eventId teamCode isLocked isRegistered registrations { __typename ...Registration } reservations { __typename ...Reservation } }  fragment Event on Event { id title pairingType status shortCode isOnline createdBy requiredTeamSize eventFormat { __typename ...EventFormat } registeredPlayers { __typename ...Registration } gameStateAtRound(round: 0) { __typename ...GameState } teams { __typename ...TeamFields } }";
+        const request: string = "query loadEvent($eventId: ID!) {event(id: $eventId) { ...Event __typename } } fragment Event on Event { __typename id venue { ...Venue __typename } title description format limitedSet rulesEnforcementLevel pairingType entryFee { __typename amount currency } scheduledStartTime actualStartTime estimatedEndTime actualEndTime status capacity numberOfPlayers shortCode tags latitude longitude address timeZone phoneNumber emailAddress startingTableNumber hasTop8 isAdHoc isOnline createdBy requiredTeamSize groupId cardSet { __typename id name releaseDate } eventFormat { ...EventFormat __typename } registeredPlayers { ...Registration __typename } gameState { ...GameState __typename } teams { ...TeamFields __typename } } fragment Venue on Venue { __typename id name latitude longitude address streetAddress city state country postalCode timeZone phoneNumber emailAddress googlePlaceId capacity notes isApproved } fragment EventFormat on EventFormat { __typename id name blurb requiresSetSelection includesDraft includesDeckbuilding wizardsOnly color } fragment Registration on Registration { __typename id status personaId displayName firstName lastName preferredTableNumber } fragment GameState on GameState { __typename id minRounds pods { ...Pod __typename } top8Pods { ...Pod __typename } draftTimerStartTime draftTimerExpirationTime draftEndTime top8DraftTimerStartTime top8DraftTimerExpirationTime top8DraftEndTime constructionTimerStartTime constructionTimerExpirationTime constructionTimeEndTime constructedSeats { ...Seats __typename } currentRoundNumber currentRound { ...Round __typename } rounds { ...Round __typename } standings { ...Standings __typename } drops { ...Drop __typename } nextRoundMeta { ...RoundMetaData __typename } podPairingType draftTimerID  constructDraftTimerID top8DraftTimerID gamesToWin } fragment Pod on Pod { __typename number seats { ...Seats __typename } } fragment Seats on Seat { __typename number personaId displayName firstName lastName team { ...Team __typename } } fragment Team on Team { __typename id cacheId name players { ...User __typename } results { ...Result __typename } } fragment User on User { __typename personaId displayName firstName lastName } fragment Result on TeamResult { __typename draws isPlayoffResult submitter isFinal isTO isBye wins losses teamId } fragment Round on Round { __typename id number isFinalRound isPlayoff isCertified actualStartTime actualEndTime roundTimerExpirationTime matches { ...Match __typename } pairingStrategy canRollback timerID } fragment Match on Match { __typename id cacheId isBye teams { ...Team __typename } leftTeamWins rightTeamWins isLeftTeamDropped isRightTeamDropped tableNumber } fragment Standings on TeamStanding { __typename team { ...Team __typename } rank wins losses draws byes matchPoints gameWinPercent opponentGameWinPercent opponentMatchWinPercent } fragment Drop on Drop { __typename teamId roundNumber } fragment RoundMetaData on RoundMetadata { __typename hasDraft hasDeckConstruction } fragment TeamFields on TeamPayload { __typename id eventId teamCode isLocked isRegistered registrations { ...Registration __typename } reservations { ...Reservation __typename } } fragment Reservation on Registration { __typename status personaId displayName firstName lastName preferredTableNumber }"
+        const load_event = {
             "operationName": "loadEvent",
             "variables": {"eventId": Number(route.params.eventID)},
             "query": request
@@ -300,29 +299,45 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                 "Content-Type": "application/json",
                 "Authorization": "Bearer " + access_token
             },
-            body: JSON.stringify(load_standings_payload),
+            body: JSON.stringify(load_event),
         });
         const json = await response.json();
         console.log("Bearer " + access_token)
-        // console.log(JSON.stringify(load_standings_payload))
-        if (response.status == 200) {
+        if (response.status != 200) {
+            console.log("Error fetching GameState")
+            throw new Error("Failed to fetch GameState");
+        } else {
             var standingsArray: any = [];
 
             var players: {[personaId: string] : Player} = {};
 
-            // Set the round data
-            const min_rounds: number = Number(json["data"]["event"]["gameStateAtRound"]["minRounds"]);
-            const current_round: number = Number(json["data"]["event"]["gameStateAtRound"]["currentRoundNumber"]);
-            gamestate.currentRound = current_round;
-            gamestate.minRound = min_rounds;
+            // const standingsQuery = "query getEventStandings($eventId: ID!) { event(id: $eventId) { id status gameStateAtRound(round: 0) { currentRoundNumber standings { __typename ...Standings } } } }  fragment User on User { personaId displayName firstName lastName }  fragment Result on TeamResult { draws isPlayoffResult submitter isFinal isTO isBye wins losses teamId }  fragment Team on Team { id name players { __typename ...User } results { __typename ...Result } }  fragment Standings on TeamStanding { team { __typename ...Team } rank wins losses draws byes matchPoints gameWinPercent opponentGameWinPercent opponentMatchWinPercent }"
+            // const load_standings_payload = {
+            //     "operationName": "getEventStandings",
+            //     "variables": {"eventId": Number(route.params.eventID)},
+            //     "query": standingsQuery
+            // }
+            // const standingsResponse = await fetch(GRAPHQL_API, {
+            //     method: "POST",
+            //     headers: {
+            //         "Content-Type": "application/json",
+            //         "Authorization": "Bearer " + access_token
+            //     },
+            //     body: JSON.stringify(load_standings_payload),
+            // });
+            // const standingsJson = await standingsResponse.json();
 
-            if (current_round == 1) {
+            // Set the round data
+            gamestate.minRound = Number(json["data"]["event"]["gameState"]["minRounds"]);
+            gamestate.currentRound = Number(json["data"]["event"]["gameState"]["currentRoundNumber"]);            
+
+            // On the first round, we don't have "standings" yet. So just list the players in no particular order instead
+            //  There's still pairings to work with.
+            if (gamestate.currentRound == 1) {
                 var roundOneGamestate: GameState = new GameState();
-                roundOneGamestate.currentRound = current_round
-                roundOneGamestate.minRound = min_rounds
-                // On the first round, we don't have "standings" yet. So just list the players in no particular order instead
-                //  There's still pairings to work with.
-                const rounds: any[] = json["data"]["event"]["gameStateAtRound"]["rounds"];
+                roundOneGamestate.currentRound = gamestate.currentRound
+                roundOneGamestate.minRound = gamestate.minRound
+                const rounds: any[] = json["data"]["event"]["gameState"]["rounds"];
                 for (let round of rounds) {
                     const matches: any[] = round["matches"];
                     var rank: number = 1;
@@ -340,10 +355,8 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                 }
                 return roundOneGamestate;
             } else {
-                console.log("BBBB")
-
                 // Build initial players array
-                for (let team of json["data"]["event"]["gameStateAtRound"]["standings"]) {
+                for (let team of json["data"]["event"]["gameState"]["standings"]) {
                     var player = new Player();
                     player.wins = Number(team["wins"]);
                     player.losses = Number(team["losses"]);
@@ -364,10 +377,9 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                 bye.isBye = true;
                 bye.personaId = "bye"
                 players["bye"] = bye;
-                console.log("AAAA")
                 // Go through all past results and calculate game win/loss counts
                 //      This information is present here in the match history, but not given to us explicitly
-                const rounds: any[] = json["data"]["event"]["gameStateAtRound"]["rounds"];
+                const rounds: any[] = json["data"]["event"]["gameState"]["rounds"];
                 gamestate.roundHistory = rounds;
                 for (var round of rounds) {
                     if (Number(round["number"]) < rounds.length){
@@ -396,7 +408,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             
                 // Gather the pairings in a nice structure (array of personaId string pairs)
                 var pairings: any = [];
-                for (var match of json["data"]["event"]["gameStateAtRound"]["currentRound"]["matches"]) {
+                for (var match of json["data"]["event"]["gameState"]["currentRound"]["matches"]) {
                     if (match["isBye"]) {
                         const personaA: string = match["teams"][0]["players"][0]["personaId"]
                         pairings.push([personaA, "bye"])
@@ -424,10 +436,6 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                 }
                 return gamestate;
             }
-
-        } else {
-            console.log("Error fetching GameState")
-            throw new Error("Failed to fetch GameState");
         }
         throw new Error("We shouldn't be able to get here.");
     }
@@ -629,7 +637,6 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                 setSelectedId(item.id);
                 setSelectedName(item.title);
                 onPressPlayer(item.id);
-                console.log("selecting player: ", item.id)
             }}
             backgroundColor={"#6e3b6e"}
             textColor={"black"}
