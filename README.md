@@ -1,7 +1,8 @@
 # Omniscience
-See the future of your Magic: The Gathering tournament
 
 <img align="right" width="252" height="352" src="./omniscience/assets/m19-65-omniscience.jpg?raw=true">
+
+See the future of your Magic: The Gathering tournament
 
 Specifically, Omniscience takes the current state of a Magic: The Gathering tournament you're in (one that is using the official Companion app for tracking) and simulates thousands of possible results at random. From this, you can know what your odds are of making it into the top 8 of a tournament if you win/lose/draw. 
 
@@ -41,17 +42,16 @@ Specifically, Omniscience takes the current state of a Magic: The Gathering tour
 
     Omniscience works by simulating thousands of possible event outcomes at random. For even medium-sized events, this means that there's billions (if not in fact way more) of possible distinct outcomes per round. We can't simulate all of them. If Omniscience simulates 1,000 events and you make top 8 in all 1,000 simulations, it will report the percentage as 100%. But that doesn't mean there couldn't POSSIBLY be some exceedingly rare scenario lurking in the immense possibility space that we didn't happen to land on. So the numbers should be interpreted as approximations rather than mathematical certainties. In practice, it ought to be rigorous enough to base decisions on. 
 
-    One other clarification is that Omniscience makes some reasonable assumptions about player behavior, especially around drawing. Some number of matches will inevitably result in unintentional draws. (The round goes to time with no winner) Omniscience needs to make an assumption about what this unintentional draw rate will be. If this assumption is too far off from reality, then the simulations risk not being sufficiently representative. Similarly, Omniscience assumes that players who are trivially locked for top 8 (acutally mathematicaly locked, not just stochastically likely) will choose to draw. This is typically a safe assumption, but sometimes players do strange things.
-
 ### Assumptions
 
 Omniscience makes a few assumptions about the nature of your event in order to calculate odds. If any of these assumptions are broken, then wierd things can happen that are hard to account for:
 
-1. Players don't collude.
-2. There is a static unintentional draw rate that will always occur. (Default is 1%)
-3. Players are unaware of the results of other matches. (IE: Prisoner's dilemma)
-4. The format of your event is a Swiss bracket with a cut to top 8. 
-5. All players are equally likely to win a match. (Omniscience isn't going to account for the fact that Reid Duke is in the event)
+1. Players act in their own rational best interest. (IE: Drawing in when they're locked to do so)
+2. Players don't collude.
+3. There is a static unintentional draw rate that will always occur. (Default is 1%)
+4. Players are unaware of the results of other matches. (IE: Prisoner's dilemmas)
+5. The format of your event is a Swiss bracket with a cut to top 8. 
+6. All players are equally likely to win a match. (Omniscience isn't going to account for the fact that Reid Duke is in the event)
 
 ### Building from Source / Running on Expo
 
