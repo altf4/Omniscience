@@ -1,8 +1,9 @@
 # Omniscience
 See the future of your Magic: The Gathering tournament
 
-Specifically, Omniscience takes the current state of a Magic: The Gathering tournament you're in (one that is using the official Companion app for tracking) and simulates thousands of possible results at random. From this, you can know what your odds are of making it into the top 8 of a tournament if you win/lose/draw. 
+<img alight="right" width="252" height="352" src="./omniscience/assets/m19-65-omniscience.jpg">
 
+Specifically, Omniscience takes the current state of a Magic: The Gathering tournament you're in (one that is using the official Companion app for tracking) and simulates thousands of possible results at random. From this, you can know what your odds are of making it into the top 8 of a tournament if you win/lose/draw. 
 
 ### Features
 
@@ -42,7 +43,22 @@ Specifically, Omniscience takes the current state of a Magic: The Gathering tour
 
     One other clarification is that Omniscience makes some reasonable assumptions about player behavior, especially around drawing. Some number of matches will inevitably result in unintentional draws. (The round goes to time with no winner) Omniscience needs to make an assumption about what this unintentional draw rate will be. If this assumption is too far off from reality, then the simulations risk not being sufficiently representative. Similarly, Omniscience assumes that players who are trivially locked for top 8 (acutally mathematicaly locked, not just stochastically likely) will choose to draw. This is typically a safe assumption, but sometimes players do strange things.
 
+### Assumptions
+
+Omniscience makes a few assumptions about the nature of your event in order to calculate odds. If any of these assumptions are broken, then wierd things can happen that are hard to account for:
+
+1. Players don't collude.
+2. There is a static unintentional draw rate that will always occur. (Default is 1%)
+3. Players are unaware of the results of other matches. (IE: Prisoner's dilemma)
+4. The format of your event is a Swiss bracket with a cut to top 8. 
+5. All players are equally likely to win a match. (Omniscience isn't going to account for the fact that Reid Duke is in the event)
+
 ### Building from Source / Running on Expo
 
 Omniscience is written in React Native, so building it should be as simple as `yarn` and then `yarn start`. You should then be able to pull the app up using the Expo Go app. Setting up Expo is beyond the scope of this readme, but it's pretty simple and Googleable. 
 
+### UI Help
+You can probably tell that I'm not a UI designer. If you are, and liked Omniscience, then please help out making the UI prettier. Thanks!
+
+## Unofficial 
+The Omniscience app is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. (IE: The lovely cart of Omniscience from Jason Chan) ©Wizards of the Coast LLC.
