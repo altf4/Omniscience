@@ -20,6 +20,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     const [progress, setProgress] = useState(0);
     const [refreshing, setRefreshing] = useState(false);
     const [stale, setStale] = useState(true);
+    const [currentGamestate, setCurrentGamestate] = useState(new GameState());
     // "conversion" rates (ie: chance of top8'ing win win/draw/loss)
     const [ourConversionRateWin, setOurConversionRateWin] = useState(0);
     const [ourConversionRateDraw, setOurConversionRateDraw] = useState(0);
@@ -59,9 +60,8 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     }
 
     // reset - should we reset the predictions?
-    async function updateStandingsDisplay(gamestate: GameState, resetPredictions: boolean) {
+    async function updateStandingsDisplay(gamestate: GameState) {
         var standingsArray: any = [];
-        var predictionsArray: any = [];
         // Update the display data structure
         for (let personaId in gamestate.players) {
             const player: Player = gamestate.players[personaId];
@@ -80,55 +80,57 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             }
         }
         setStandingsData(standingsArray);
-        const personaId: any = await AsyncStorage.getItem("@selectedPersonaId");
+     }
 
-        if (resetPredictions === true){
-            for (var round of gamestate.roundHistory) {
-                if (Number(round["number"]) < gamestate.roundHistory.length){
-                    const matches: any[] = round["matches"];
-                    for (var match of matches) {
-                        if (match["isBye"] === false){
-                            const personaA: string = match["teams"][0]["players"][0]["personaId"];
-                            const personaB: string = match["teams"][1]["players"][0]["personaId"];
-                            var personaIndex = -1;
-                            if (personaA === personaId) {
-                                personaIndex = 0;
-                            } else if (personaB === personaId) {
-                                personaIndex = 1;
-                            }
-                            if (personaIndex > -1) {
-                                var team = match["teams"][personaIndex];
-                                if (team["results"]){
-                                    const wins = team["results"][0]["wins"];
-                                    const losses = team["results"][0]["losses"];
-                                    if (wins > losses) {
-                                        predictionsArray.push("win");
-                                    } else if (losses > wins) {
-                                        predictionsArray.push("loss");
-                                    } else {
-                                        predictionsArray.push("draw");
-                                    }
+    async function updatePredictionsDisplay(gamestate: GameState) {
+        const personaId: any = await AsyncStorage.getItem("@selectedPersonaId");
+        var predictionsArray: any = [];
+
+        for (var round of gamestate.roundHistory) {
+            if (Number(round["number"]) < gamestate.roundHistory.length){
+                const matches: any[] = round["matches"];
+                for (var match of matches) {
+                    if (match["isBye"] === false){
+                        const personaA: string = match["teams"][0]["players"][0]["personaId"];
+                        const personaB: string = match["teams"][1]["players"][0]["personaId"];
+                        var personaIndex = -1;
+                        if (personaA === personaId) {
+                            personaIndex = 0;
+                        } else if (personaB === personaId) {
+                            personaIndex = 1;
+                        }
+                        if (personaIndex > -1) {
+                            var team = match["teams"][personaIndex];
+                            if (team["results"]){
+                                const wins = team["results"][0]["wins"];
+                                const losses = team["results"][0]["losses"];
+                                if (wins > losses) {
+                                    predictionsArray.push("win");
+                                } else if (losses > wins) {
+                                    predictionsArray.push("loss");
+                                } else {
+                                    predictionsArray.push("draw");
                                 }
                             }
-                        } else {
-                            // This is a bye
-                            const personaA: string = match["teams"][0]["players"][0]["personaId"]
-                            if (personaA === personaId) {
-                                predictionsArray.push("win");
-                            }
+                        }
+                    } else {
+                        // This is a bye
+                        const personaA: string = match["teams"][0]["players"][0]["personaId"]
+                        if (personaA === personaId) {
+                            predictionsArray.push("win");
                         }
                     }
                 }
             }
-
-            // Fill in remaining predictions with wins
-            const roundsleft = gamestate.minRound - predictionsArray.length;
-            for (let i = 0; i < roundsleft; i++){
-                predictionsArray.push("win");
-            }
-            setPredictionsData(predictionsArray);
-            AsyncStorage.setItem('@predictions', JSON.stringify(predictionsArray));
         }
+
+        // Fill in remaining predictions with wins
+        const roundsleft = gamestate.minRound - predictionsArray.length;
+        for (let i = 0; i < roundsleft; i++){
+            predictionsArray.push("win");
+        }
+        setPredictionsData(predictionsArray);
+        AsyncStorage.setItem('@predictions', JSON.stringify(predictionsArray));
     }
 
     // Synchronous function returns true if the target player is currently in the top 8 of the given GameState
@@ -312,22 +314,6 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
 
             var players: {[personaId: string] : Player} = {};
 
-            // const standingsQuery = "query getEventStandings($eventId: ID!) { event(id: $eventId) { id status gameStateAtRound(round: 0) { currentRoundNumber standings { __typename ...Standings } } } }  fragment User on User { personaId displayName firstName lastName }  fragment Result on TeamResult { draws isPlayoffResult submitter isFinal isTO isBye wins losses teamId }  fragment Team on Team { id name players { __typename ...User } results { __typename ...Result } }  fragment Standings on TeamStanding { team { __typename ...Team } rank wins losses draws byes matchPoints gameWinPercent opponentGameWinPercent opponentMatchWinPercent }"
-            // const load_standings_payload = {
-            //     "operationName": "getEventStandings",
-            //     "variables": {"eventId": Number(route.params.eventID)},
-            //     "query": standingsQuery
-            // }
-            // const standingsResponse = await fetch(GRAPHQL_API, {
-            //     method: "POST",
-            //     headers: {
-            //         "Content-Type": "application/json",
-            //         "Authorization": "Bearer " + access_token
-            //     },
-            //     body: JSON.stringify(load_standings_payload),
-            // });
-            // const standingsJson = await standingsResponse.json();
-
             // Set the round data
             gamestate.minRound = Number(json["data"]["event"]["gameState"]["minRounds"]);
             gamestate.currentRound = Number(json["data"]["event"]["gameState"]["currentRoundNumber"]);            
@@ -445,7 +431,9 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     useEffect(() => {
         async function doSimulations() {
             var gamestate: GameState = await fetchGameState();
-            await updateStandingsDisplay(gamestate, true);
+            setCurrentGamestate(gamestate)
+            await updateStandingsDisplay(gamestate);
+            await updatePredictionsDisplay(gamestate)
             await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
             const personaId: any = await AsyncStorage.getItem("@ourPersonaId");
             const name: any = await AsyncStorage.getItem("@ourName");
@@ -468,6 +456,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             setProgress(1);
         }
 
+        setStale(false)
         doSimulations();
 
     }, []);
@@ -591,6 +580,15 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             flex: 1,
             fontSize: 20,
         },
+        recalculateButton: {
+            flex: 1,
+            fontSize: 20,
+            backgroundColor: '#cccccc',
+        },
+        recalculateText: {
+            flex: 1,
+            fontSize: 40,
+        }
     });
 
     const Item = ({ personaId, rank, title, matchPoints, omw, gwp, ogw, onPress, backgroundColor, textColor }: {personaId: string, rank: number, title: string, matchPoints: number, omw: number, gwp: number, ogw: number, onPress: any, backgroundColor: any, textColor: any}) => (
@@ -607,24 +605,9 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     );
 
     async function onPressPlayer(id: string) {
-        setRefreshing(true);
-        setProgress(0);
-        var gamestate: GameState = await fetchGameState();
-        await updateStandingsDisplay(gamestate, true);
-        await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
-        // Run the simulations if it's the last round
-        if (gamestate.currentRound === gamestate.minRound)  {
-            SimulateLastRoundOfEvent(1000, gamestate, id);            
-        }
-        else {
-            const predictions: string[] = JSON.parse(await AsyncStorage.getItem('@predictions') || '{}')
-            const n: number = 1000;
-            const successes = await SimulateRestOfEvent(n, gamestate, predictions, id);
-            const odds: number = 100* (successes / n)
-            setWinOutOdds(Math.round(odds * 100) / 100); // round the odds to 2 decimal points        
-        }
-        setProgress(1);
-        setRefreshing(false);
+        console.log("Pressed player")
+        setStale(true)
+        updatePredictionsDisplay(currentGamestate)
     }
 
     const renderItem = ({ item }: {item: any}) => (
@@ -665,6 +648,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
 
     // Clear out any state and start over
     async function onRefresh() {
+        setStale(false)
         const personaId: any = await AsyncStorage.getItem("@ourPersonaId");
         const name: any = await AsyncStorage.getItem("@ourName");
         AsyncStorage.setItem("@selectedPersonaId", personaId);
@@ -675,20 +659,24 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
 
     // Recalculate results, but don't change selections
     async function recalculate(resetPredictions: boolean) {
+        setStale(false)
         setProgress(0);
         setRefreshing(true);
         const personaId: any = await AsyncStorage.getItem("@selectedPersonaId");
-        var gamestate: GameState = await fetchGameState();
-        await updateStandingsDisplay(gamestate, resetPredictions);
+        console.log("recalculating for", personaId)
+        await updateStandingsDisplay(currentGamestate);
+        if (resetPredictions) {
+            await updatePredictionsDisplay(currentGamestate)
+        }
         await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update        
         // Run the simulations if it's the last round
-        if (gamestate.currentRound === gamestate.minRound)  {
-            SimulateLastRoundOfEvent(1000, gamestate, personaId);            
+        if (currentGamestate.currentRound === currentGamestate.minRound)  {
+            SimulateLastRoundOfEvent(1000, currentGamestate, personaId);            
         }
         else{
             const predictions: string[] = JSON.parse(await AsyncStorage.getItem('@predictions')  || '{}')
             const n: number = 1000;
-            const successes = await SimulateRestOfEvent(n, gamestate, predictions, personaId);
+            const successes = await SimulateRestOfEvent(n, currentGamestate, predictions, personaId);
             const odds: number = 100* (successes / n)
             setWinOutOdds(Math.round(odds * 100) / 100); // round the odds to 2 decimal points
         }
@@ -698,6 +686,14 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
 
     class SimulationResultsArea extends Component {
         render(){
+            if (stale) {
+                return (
+                    <Pressable style={styles.recalculateButton} onPress={() => recalculate(false)}>
+                        <Text style={styles.recalculateText}>Recalculate ⟳</Text>
+                    </Pressable>
+                );
+            }
+
             if (progress >= 1){
                 if (currentRound === minRounds){
                     return (
@@ -786,7 +782,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                                 this.setState({ result: "draw"})
                                 setPredictionsData(predictions);
                                 AsyncStorage.setItem('@predictions', JSON.stringify(predictions));
-                                recalculate(false);
+                                setStale(true)
                             }
                         }}>                  
                             <Text style={styles.winlossLabels}>Loss</Text>
@@ -799,12 +795,12 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                     <View style={styles.winSelectionContainer}>
                         <Pressable onPress={() => {
                             if (this.props.round+1 >= currentRound){
-                                const predictions: boolean[] = predictionsData;
+                                const predictions: string[] = predictionsData;
                                 predictions[this.props.round] = "loss";
                                 this.setState({ result: "loss"})
                                 setPredictionsData(predictions);
                                 AsyncStorage.setItem('@predictions', JSON.stringify(predictions));
-                                recalculate(false);
+                                setStale(true)
                             }
                         }}>
                             <Text style={styles.winlossLabels}>Win</Text>
@@ -818,12 +814,12 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                     <View style={styles.drawSelectionContainer}>
                         <Pressable onPress={() => {
                             if (this.props.round+1 >= currentRound){
-                                const predictions: boolean[] = predictionsData;
+                                const predictions: string[] = predictionsData;
                                 predictions[this.props.round] = "win";
                                 this.setState({ result: "win"})
                                 setPredictionsData(predictions);
                                 AsyncStorage.setItem('@predictions', JSON.stringify(predictions));
-                                recalculate(false);
+                                setStale(true)
                             }
                         }}>
                             <Text style={styles.winlossLabels}>Draw</Text>
