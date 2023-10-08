@@ -19,6 +19,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     const [ourName, setOurName] = useState('');
     const [progress, setProgress] = useState(0);
     const [refreshing, setRefreshing] = useState(false);
+    const [stale, setStale] = useState(true);
     // "conversion" rates (ie: chance of top8'ing win win/draw/loss)
     const [ourConversionRateWin, setOurConversionRateWin] = useState(0);
     const [ourConversionRateDraw, setOurConversionRateDraw] = useState(0);
@@ -461,7 +462,8 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                 const predictions: string[] = JSON.parse(await AsyncStorage.getItem('@predictions') || '{}')
                 const n: number = 1000;
                 const successes = await SimulateRestOfEvent(n, gamestate, predictions, personaId);
-                setWinOutOdds(100* (successes / n));
+                const odds: number = 100* (successes / n)
+                setWinOutOdds(Math.round(odds * 100) / 100); // round the odds to 2 decimal points
             }
             setProgress(1);
         }
@@ -618,7 +620,8 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             const predictions: string[] = JSON.parse(await AsyncStorage.getItem('@predictions') || '{}')
             const n: number = 1000;
             const successes = await SimulateRestOfEvent(n, gamestate, predictions, id);
-            setWinOutOdds(100* (successes / n));
+            const odds: number = 100* (successes / n)
+            setWinOutOdds(Math.round(odds * 100) / 100); // round the odds to 2 decimal points        
         }
         setProgress(1);
         setRefreshing(false);
@@ -686,7 +689,8 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             const predictions: string[] = JSON.parse(await AsyncStorage.getItem('@predictions')  || '{}')
             const n: number = 1000;
             const successes = await SimulateRestOfEvent(n, gamestate, predictions, personaId);
-            setWinOutOdds(100* (successes / n));
+            const odds: number = 100* (successes / n)
+            setWinOutOdds(Math.round(odds * 100) / 100); // round the odds to 2 decimal points
         }
         setRefreshing(false);
         setProgress(1);

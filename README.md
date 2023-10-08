@@ -1,6 +1,6 @@
 # Omniscience
 
-<img align="right" width="252" height="352" src="./omniscience/assets/m19-65-omniscience.jpg?raw=true">
+<img align="right" width="252" height="352" src="./omniscience/assets/m19-65-omniscience.png?raw=true">
 
 See the future of your Magic: The Gathering tournament
 

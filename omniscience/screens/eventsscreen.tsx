@@ -75,7 +75,14 @@ export const EventsScreen = ({navigation}: {navigation: any}) => {
                 var events: any[] = [];
                 for (let event of json["data"]["myActiveEvents"]) {
                     const id: string = event["id"];
-                    events.push({"id": id, "title": "Event: " + id});
+                    const venue: string = event["venue"]
+                    console.log(event)
+                    if (venue != null) {
+                        events.push({"id": id, "title": "Event: " + id + " at " + venue});
+                    } else {
+                        events.push({"id": id, "title": "Event: " + id + " online"});
+                    }
+                        
                 }
                 setEventData(events);
 
@@ -155,7 +162,7 @@ export const EventsScreen = ({navigation}: {navigation: any}) => {
                 return (                
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh}>
                         <SafeAreaView style={styles.container}>
-                            <Text style={styles.noEventsMessage}>No Events</Text>
+                            <Text style={styles.noEventsMessage}>No events...</Text>
                         </SafeAreaView>
                     </RefreshControl>
                 )
