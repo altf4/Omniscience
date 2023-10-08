@@ -1,7 +1,7 @@
 # Omniscience
 See the future of your Magic: The Gathering tournament
 
-<img alight="right" width="252" height="352" src="./omniscience/assets/m19-65-omniscience.jpg">
+<img align="right" width="252" height="352" src="./omniscience/assets/m19-65-omniscience.jpg?raw=true">
 
 Specifically, Omniscience takes the current state of a Magic: The Gathering tournament you're in (one that is using the official Companion app for tracking) and simulates thousands of possible results at random. From this, you can know what your odds are of making it into the top 8 of a tournament if you win/lose/draw. 
 
