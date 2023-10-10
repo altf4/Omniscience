@@ -539,12 +539,12 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         },
         lossSelectionContainer: {
             flex: 1,
-            backgroundColor: '#cc0000',
+            backgroundColor: '#ad1111',
             alignItems: 'center',
         },
         winSelectionContainer: {
             flex: 1,
-            backgroundColor: '#00cc00',
+            backgroundColor: '#4bd154',
             alignItems: 'center',
         },        
         drawSelectionContainer: {
@@ -575,11 +575,20 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             fontSize: 16,
             fontWeight: 'bold',
             flex: 1,
-        },        
+        }, 
+        headerItemName: {
+            fontSize: 16,
+            fontWeight: 'bold',
+            flex: 3,
+        },               
         item: {
             flex: 1,
             fontSize: 20,
         },
+        itemName: {
+            flex: 3,
+            fontSize: 20,
+        },        
         recalculateButton: {
             flex: 1,
             fontSize: 20,
@@ -595,11 +604,9 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         <TouchableOpacity onPress={onPress} style={[styles.item, backgroundColor]}>
             <View style={personaId === ourPersonaId ? styles.ourItemContainer : (personaId === selectedId ? styles.selectedItemContainer : styles.itemContainer)}>
                 <Text style={[styles.item, textColor]}>{rank}</Text>
-                <Text style={[styles.item, textColor]}>{title}</Text>
+                <Text style={[styles.itemName, textColor]}>{title}</Text>
                 <Text style={[styles.item, textColor]}>{matchPoints}</Text>
                 <Text style={[styles.item, textColor]}>{omw}</Text>
-                <Text style={[styles.item, textColor]}>{gwp}</Text>
-                <Text style={[styles.item, textColor]}>{ogw}</Text>
             </View>
         </TouchableOpacity>
     );
@@ -634,11 +641,9 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         <View style={[styles.container, {
             flexDirection: "row"}]}>
             <Text style={[styles.headerItem]}>Place</Text>
-            <Text style={[styles.headerItem]}>Name</Text>
+            <Text style={[styles.headerItemName]}>Name</Text>
             <Text style={[styles.headerItem]}>Points</Text>
             <Text style={[styles.headerItem]}>OMW%</Text>
-            <Text style={[styles.headerItem]}>GW%</Text>
-            <Text style={[styles.headerItem]}>OGW%</Text>
         </View>
     );
     
