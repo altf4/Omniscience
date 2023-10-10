@@ -1,4 +1,4 @@
-import { Button, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Button, StyleSheet, Text, TextInput, View, Linking} from 'react-native';
 import React, {useState, useEffect} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
@@ -107,6 +107,8 @@ export const LoginScreen = ({navigation}: {navigation: any}) => {
       <Button title="Login" onPress={(e) => onLoginPress(e, username, password, navigation)}/>
       <Text style={[styles.faildauth]}>Login Failed</Text>
       <Text style={styles.bottomsubtitle}>Math is for blockers, not top 8 competitors</Text>
+      <Text style={styles.bottomsubtitle}>Source code available on </Text>
+      <Text style={{color: 'blue'}} onPress={() => Linking.openURL('https://github.com/altf4/omniscience')}>GitHub</Text>
       <StatusBar style="auto" />
     </View>
   );
