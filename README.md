@@ -4,7 +4,7 @@
 
 See the future of your Magic: The Gathering tournament
 
-Specifically, Omniscience takes the current state of a Magic: The Gathering tournament you're in (one that is using the official Companion app for tracking) and simulates thousands of possible results at random. From this, you can know what your odds are of making it into the top 8 of a tournament if you win/lose/draw. 
+Omniscience takes the current state of a Magic: The Gathering tournament you're in (one that is using the official Companion app for tracking) and simulates thousands of possible results at random. From this, you can know what your odds are of making it into the top 8 of a tournament if you win/lose/draw. 
 
 ### Features
 
@@ -61,4 +61,4 @@ Omniscience is written in React Native, so building it should be as simple as `y
 You can probably tell that I'm not a UI designer. If you are, and liked Omniscience, then please help out making the UI prettier. Thanks!
 
 ## Unofficial 
-The Omniscience app is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. (IE: The lovely cart of Omniscience from Jason Chan) ©Wizards of the Coast LLC.
+The Omniscience app is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. (IE: The lovely art of Omniscience from Jason Chan) ©Wizards of the Coast LLC.
