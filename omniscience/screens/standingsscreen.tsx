@@ -1,11 +1,11 @@
-import { Button, StyleSheet, Text, Pressable, RefreshControl, View, SafeAreaView, TouchableOpacity, FlatList, ViewStyle, TouchableHighlightBase} from 'react-native';
-import React, {Component, useState, useEffect} from 'react';
+import { Button, StyleSheet, Text, Pressable, RefreshControl, View, SafeAreaView, TouchableOpacity, FlatList, ViewStyle, TouchableHighlightBase } from 'react-native';
+import React, { Component, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setStatusBarNetworkActivityIndicatorVisible, StatusBar } from 'expo-status-bar';
 import * as Progress from 'react-native-progress';
-import {GameState, Player, SimulateRound} from '../core/gamestate';
+import { GameState, Player, SimulateRound } from '../core/gamestate';
 
-export function StandingsScreen({route, navigation}: {route: any, navigation: any}) {
+export function StandingsScreen({ route, navigation }: { route: any, navigation: any }) {
     const GRAPHQL_API = "https://api.tabletop.wizards.com/silverbeak-griffin-service/graphql"
     const OAUTH_API = "https://api.platform.wizards.com/auth/oauth/token"
 
@@ -35,27 +35,27 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     async function refreshAccess() {
         const value = await AsyncStorage.getItem("@refresh_token");
         if (value !== null) {
-        const formdata = new URLSearchParams({
-            "grant_type": "refresh_token", 
-            "refresh_token": value,
-        });
-        const response = await fetch(OAUTH_API, {
-            method: "POST",
-            headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Authorization": "Basic V0pSWURITkdST0laSEw4QjpWNVZYSzZGTEcxWUkwR0QyWFkzSA=="
-            },
-            body: formdata.toString(),
-        });
-        const json = await response.json();
-        if (response.status == 200) {
-            await AsyncStorage.setItem("@access_token", json["access_token"]);
-            return true
+            const formdata = new URLSearchParams({
+                "grant_type": "refresh_token",
+                "refresh_token": value,
+            });
+            const response = await fetch(OAUTH_API, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Authorization": "Basic V0pSWURITkdST0laSEw4QjpWNVZYSzZGTEcxWUkwR0QyWFkzSA=="
+                },
+                body: formdata.toString(),
+            });
+            const json = await response.json();
+            if (response.status == 200) {
+                await AsyncStorage.setItem("@access_token", json["access_token"]);
+                return true
+            } else {
+                return false
+            }
         } else {
             return false
-        }      
-        } else {
-        return false
         }
     }
 
@@ -67,7 +67,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             const player: Player = gamestate.players[personaId];
             if (player.isBye === false) {
                 standingsArray.push({
-                    "id": player.personaId, 
+                    "id": player.personaId,
                     "title": player.firstName + " " + player.lastName,
                     "rank": player.rank,
                     "matchPoints": player.matchPoints,
@@ -80,17 +80,17 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             }
         }
         setStandingsData(standingsArray);
-     }
+    }
 
     async function updatePredictionsDisplay(gamestate: GameState) {
         const personaId: any = await AsyncStorage.getItem("@selectedPersonaId");
         var predictionsArray: any = [];
 
         for (var round of gamestate.roundHistory) {
-            if (Number(round["number"]) < gamestate.roundHistory.length){
+            if (Number(round["number"]) < gamestate.roundHistory.length) {
                 const matches: any[] = round["matches"];
                 for (var match of matches) {
-                    if (match["isBye"] === false){
+                    if (match["isBye"] === false) {
                         const personaA: string = match["teams"][0]["players"][0]["personaId"];
                         const personaB: string = match["teams"][1]["players"][0]["personaId"];
                         var personaIndex = -1;
@@ -101,7 +101,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                         }
                         if (personaIndex > -1) {
                             var team = match["teams"][personaIndex];
-                            if (team["results"]){
+                            if (team["results"]) {
                                 const wins = team["results"][0]["wins"];
                                 const losses = team["results"][0]["losses"];
                                 if (wins > losses) {
@@ -126,7 +126,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
 
         // Fill in remaining predictions with wins
         const roundsleft = gamestate.minRound - predictionsArray.length;
-        for (let i = 0; i < roundsleft; i++){
+        for (let i = 0; i < roundsleft; i++) {
             predictionsArray.push("win");
         }
         setPredictionsData(predictionsArray);
@@ -136,13 +136,13 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     // Synchronous function returns true if the target player is currently in the top 8 of the given GameState
     function isInTop8(gamestate: GameState, targetPlayer: string): boolean {
         // Flatten players map into array
-        var playersArray: Player[] = gamestate.getSortedPlayers();     
+        var playersArray: Player[] = gamestate.getSortedPlayers();
         // Just get the top 8
         const top8: Player[] = playersArray.slice(0, 8)
 
         for (let index in top8) {
             const player: Player = playersArray[index];
-            if (targetPlayer === player.personaId){
+            if (targetPlayer === player.personaId) {
                 return true;
             }
         }
@@ -170,72 +170,72 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
 
         // Scenario 1: Match win
         var successes = 0;
-        for (let i = 0; i < n; i++) { 
+        for (let i = 0; i < n; i++) {
             const newGameState: GameState = await SimulateRound(gamestate, targetPlayerId, "win");
             successes += Number(isInTop8(newGameState, targetPlayerId));
         }
         console.log("With a win: " + successes);
-        setOurConversionRateWin(Math.round(10000 * (successes / n))  / 100);
-        setProgress(1/6);
+        setOurConversionRateWin(Math.round(10000 * (successes / n)) / 100);
+        setProgress(1 / 6);
         await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
-        
+
 
         // Scenario 2: Draw
         successes = 0;
-        for (let i = 0; i < n; i++) { 
+        for (let i = 0; i < n; i++) {
             const newGameState: GameState = await SimulateRound(gamestate, targetPlayerId, "draw");
             successes += Number(isInTop8(newGameState, targetPlayerId));
         }
         console.log("With a draw: " + successes);
-        setOurConversionRateDraw(Math.round(10000 * (successes / n))  / 100);
-        setProgress(2/6);
+        setOurConversionRateDraw(Math.round(10000 * (successes / n)) / 100);
+        setProgress(2 / 6);
         await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
 
         // Scenario 3: Match loss
         successes = 0;
-        for (let i = 0; i < n; i++) { 
+        for (let i = 0; i < n; i++) {
             const newGameState: GameState = await SimulateRound(gamestate, targetPlayerId, "loss");
             successes += Number(isInTop8(newGameState, targetPlayerId));
         }
 
         console.log("With a loss: " + successes);
-        setOurConversionRateLoss(Math.round(10000 * (successes / n))  / 100);
-        setProgress(3/6);
+        setOurConversionRateLoss(Math.round(10000 * (successes / n)) / 100);
+        setProgress(3 / 6);
         await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
 
         // Find our opponent. Calculate their results too
 
         // Scenario 1: Match win
         var successes = 0;
-        for (let i = 0; i < n; i++) { 
+        for (let i = 0; i < n; i++) {
             const newGameState: GameState = await SimulateRound(gamestate, opponentId, "win");
             successes += Number(isInTop8(newGameState, opponentId));
         }
         console.log("Opponent with a win: " + successes);
-        setOppConversionRateWin(Math.round(10000 * (successes / n))  / 100);
-        setProgress(4/6);
+        setOppConversionRateWin(Math.round(10000 * (successes / n)) / 100);
+        setProgress(4 / 6);
         await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
 
         // Scenario 2: Draw
         successes = 0;
-        for (let i = 0; i < n; i++) { 
+        for (let i = 0; i < n; i++) {
             const newGameState: GameState = await SimulateRound(gamestate, opponentId, "draw");
             successes += Number(isInTop8(newGameState, opponentId));
         }
         console.log("Opponent with a draw: " + successes);
-        setOppConversionRateDraw(Math.round(10000 * (successes / n))  / 100);
-        setProgress(5/6);
+        setOppConversionRateDraw(Math.round(10000 * (successes / n)) / 100);
+        setProgress(5 / 6);
         await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
 
         // Scenario 3: Match loss
         successes = 0;
-        for (let i = 0; i < n; i++) { 
+        for (let i = 0; i < n; i++) {
             const newGameState: GameState = await SimulateRound(gamestate, opponentId, "loss");
             successes += Number(isInTop8(newGameState, opponentId));
         }
         console.log("Opponent with a loss: " + successes);
-        setOppConversionRateLoss(Math.round(10000 * (successes / n))  / 100);
-        setProgress(6/6);
+        setOppConversionRateLoss(Math.round(10000 * (successes / n)) / 100);
+        setProgress(6 / 6);
         await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update
     }
 
@@ -249,17 +249,17 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         console.log("simulating rest of event...")
         var successes: number = 0;
         if (results.length !== gamestate.minRound) {
-            throw new RangeError(); 
+            throw new RangeError();
         }
 
         for (let i = 0; i < n; i++) {
             var nextGamestate: GameState = gamestate.copy()
-            while(nextGamestate.currentRound <= nextGamestate.minRound) {
+            while (nextGamestate.currentRound <= nextGamestate.minRound) {
                 // Do we already have pairings for the next round? If so, use those. 
                 if (nextGamestate.pairings.length === 0) {
                     nextGamestate.generateRandomPairings();
                 }
-                nextGamestate = await SimulateRound(nextGamestate, targetPlayerId, results[nextGamestate.currentRound-1]);
+                nextGamestate = await SimulateRound(nextGamestate, targetPlayerId, results[nextGamestate.currentRound - 1]);
             }
 
             if (isInTop8(nextGamestate, targetPlayerId)) {
@@ -267,7 +267,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             }
 
             if (i % 100 === 0) {
-                setProgress(i/n);
+                setProgress(i / n);
                 await new Promise(f => setTimeout(f, 5)); // Sleep real quick to give the UI a chance to update
             }
         }
@@ -276,7 +276,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     }
 
     // Reach out to remote server and return a GameState object with the latest data
-    async function fetchGameState (): Promise<GameState> {
+    async function fetchGameState(): Promise<GameState> {
         // Set our personaId to state
         const personaId: any = await AsyncStorage.getItem("@ourPersonaId");
         setOurPersonaId(personaId);
@@ -284,16 +284,16 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         var gamestate: GameState = new GameState();
 
         // TODO: We refresh at the start here, which maybe is suboptimal. Perhaps we should only refresh on error. But that seems more complex for now
-        if(await refreshAccess() === false) {
+        if (await refreshAccess() === false) {
             console.log("Failed to refresh authentication");
-            navigation.navigate("Login");                    
+            navigation.navigate("Login");
         }
         const access_token = await AsyncStorage.getItem("@access_token");
         // const request: string = "query loadEvent($eventId: ID!) { event(id: $eventId) { __typename ...Event } }  fragment EventFormat on EventFormat { id name includesDraft includesDeckbuilding }  fragment Registration on Registration { id personaId displayName firstName lastName }  fragment User on User { personaId displayName firstName lastName }  fragment Result on TeamResult { draws isPlayoffResult submitter isFinal isTO isBye wins losses teamId }  fragment Team on Team { id name players { __typename ...User } results { __typename ...Result } }  fragment Seats on Seat { number personaId displayName firstName lastName team { __typename ...Team } }  fragment Pod on Pod { number seats { __typename ...Seats } }  fragment Match on Match { id isBye teams { __typename ...Team } leftTeamWins rightTeamWins tableNumber }  fragment Round on Round { id number isFinalRound isCertified matches { __typename ...Match } canRollback timerID }  fragment Drop on Drop { teamId roundNumber }  fragment GameState on GameState { id minRounds pods { __typename ...Pod } top8Pods { __typename ...Pod } constructedSeats { __typename ...Seats } currentRoundNumber currentRound { __typename ...Round } rounds { __typename ...Round } drops { __typename ...Drop } draftTimerID constructDraftTimerID top8DraftTimerID gamesToWin }  fragment Reservation on Registration { personaId displayName firstName lastName }  fragment TeamFields on TeamPayload { id eventId teamCode isLocked isRegistered registrations { __typename ...Registration } reservations { __typename ...Reservation } }  fragment Event on Event { id title pairingType status shortCode isOnline createdBy requiredTeamSize eventFormat { __typename ...EventFormat } registeredPlayers { __typename ...Registration } gameStateAtRound(round: 0) { __typename ...GameState } teams { __typename ...TeamFields } }";
         const request: string = "query loadEvent($eventId: ID!) {event(id: $eventId) { ...Event __typename } } fragment Event on Event { __typename id venue { ...Venue __typename } title description format limitedSet rulesEnforcementLevel pairingType entryFee { __typename amount currency } scheduledStartTime actualStartTime estimatedEndTime actualEndTime status capacity numberOfPlayers shortCode tags latitude longitude address timeZone phoneNumber emailAddress startingTableNumber hasTop8 isAdHoc isOnline createdBy requiredTeamSize groupId cardSet { __typename id name releaseDate } eventFormat { ...EventFormat __typename } registeredPlayers { ...Registration __typename } gameState { ...GameState __typename } teams { ...TeamFields __typename } } fragment Venue on Venue { __typename id name latitude longitude address streetAddress city state country postalCode timeZone phoneNumber emailAddress googlePlaceId capacity notes isApproved } fragment EventFormat on EventFormat { __typename id name blurb requiresSetSelection includesDraft includesDeckbuilding wizardsOnly color } fragment Registration on Registration { __typename id status personaId displayName firstName lastName preferredTableNumber } fragment GameState on GameState { __typename id minRounds pods { ...Pod __typename } top8Pods { ...Pod __typename } draftTimerStartTime draftTimerExpirationTime draftEndTime top8DraftTimerStartTime top8DraftTimerExpirationTime top8DraftEndTime constructionTimerStartTime constructionTimerExpirationTime constructionTimeEndTime constructedSeats { ...Seats __typename } currentRoundNumber currentRound { ...Round __typename } rounds { ...Round __typename } standings { ...Standings __typename } drops { ...Drop __typename } nextRoundMeta { ...RoundMetaData __typename } podPairingType draftTimerID  constructDraftTimerID top8DraftTimerID gamesToWin } fragment Pod on Pod { __typename number seats { ...Seats __typename } } fragment Seats on Seat { __typename number personaId displayName firstName lastName team { ...Team __typename } } fragment Team on Team { __typename id cacheId name players { ...User __typename } results { ...Result __typename } } fragment User on User { __typename personaId displayName firstName lastName } fragment Result on TeamResult { __typename draws isPlayoffResult submitter isFinal isTO isBye wins losses teamId } fragment Round on Round { __typename id number isFinalRound isPlayoff isCertified actualStartTime actualEndTime roundTimerExpirationTime matches { ...Match __typename } pairingStrategy canRollback timerID } fragment Match on Match { __typename id cacheId isBye teams { ...Team __typename } leftTeamWins rightTeamWins isLeftTeamDropped isRightTeamDropped tableNumber } fragment Standings on TeamStanding { __typename team { ...Team __typename } rank wins losses draws byes matchPoints gameWinPercent opponentGameWinPercent opponentMatchWinPercent } fragment Drop on Drop { __typename teamId roundNumber } fragment RoundMetaData on RoundMetadata { __typename hasDraft hasDeckConstruction } fragment TeamFields on TeamPayload { __typename id eventId teamCode isLocked isRegistered registrations { ...Registration __typename } reservations { ...Reservation __typename } } fragment Reservation on Registration { __typename status personaId displayName firstName lastName preferredTableNumber }"
         const load_event = {
             "operationName": "loadEvent",
-            "variables": {"eventId": Number(route.params.eventID)},
+            "variables": { "eventId": Number(route.params.eventID) },
             "query": request
         }
         const response = await fetch(GRAPHQL_API, {
@@ -312,11 +312,11 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         } else {
             var standingsArray: any = [];
 
-            var players: {[personaId: string] : Player} = {};
+            var players: { [personaId: string]: Player } = {};
 
             // Set the round data
             gamestate.minRound = Number(json["data"]["event"]["gameState"]["minRounds"]);
-            gamestate.currentRound = Number(json["data"]["event"]["gameState"]["currentRoundNumber"]);            
+            gamestate.currentRound = Number(json["data"]["event"]["gameState"]["currentRoundNumber"]);
 
             // On the first round, we don't have "standings" yet. So just list the players in no particular order instead
             //  There's still pairings to work with.
@@ -369,17 +369,17 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                 const rounds: any[] = json["data"]["event"]["gameState"]["rounds"];
                 gamestate.roundHistory = rounds;
                 for (var round of rounds) {
-                    if (Number(round["number"]) < rounds.length){
+                    if (Number(round["number"]) < rounds.length) {
                         const matches: any[] = round["matches"];
                         for (var match of matches) {
-                            if (match["isBye"] === false){
+                            if (match["isBye"] === false) {
                                 const personaA: string = match["teams"][0]["players"][0]["personaId"];
                                 const personaB: string = match["teams"][1]["players"][0]["personaId"];
                                 // Add each other to the opponent list
                                 players[personaA].opponents.push(personaB);
                                 players[personaB].opponents.push(personaA);
-                                for (var team of match["teams"]){
-                                    if (team["results"]){
+                                for (var team of match["teams"]) {
+                                    if (team["results"]) {
                                         players[team["players"][0]["personaId"]].gameWins += team["results"][0]["wins"]
                                         players[team["players"][0]["personaId"]].gameLosses += team["results"][0]["losses"]
                                     }
@@ -391,15 +391,15 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                             }
                         }
                     }
-                }    
-            
+                }
+
                 // Gather the pairings in a nice structure (array of personaId string pairs)
                 var pairings: any = [];
                 for (var match of json["data"]["event"]["gameState"]["currentRound"]["matches"]) {
                     if (match["isBye"]) {
                         const personaA: string = match["teams"][0]["players"][0]["personaId"]
                         pairings.push([personaA, "bye"])
-                    } else{
+                    } else {
                         const personaA: string = match["teams"][0]["players"][0]["personaId"]
                         const personaB: string = match["teams"][1]["players"][0]["personaId"]
                         pairings.push([personaA, personaB])
@@ -416,7 +416,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
 
                 // Pull out "our" title and set it globally
                 for (let playerId in players) {
-                    if (playerId === personaId){
+                    if (playerId === personaId) {
                         const name = players[playerId].firstName + " " + players[playerId].lastName;
                         await AsyncStorage.setItem("@ourName", name);
                     }
@@ -439,18 +439,18 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             const name: any = await AsyncStorage.getItem("@ourName");
             AsyncStorage.setItem("@selectedPersonaId", personaId);
             setSelectedId(personaId);
-            setSelectedName(name);            
+            setSelectedName(name);
             // Run the simulations
             setCurrentRound(gamestate.currentRound);
             setMinRounds(gamestate.minRound);
-            console.log("Round " + gamestate.currentRound +" of "+ gamestate.minRound);
+            console.log("Round " + gamestate.currentRound + " of " + gamestate.minRound);
             if (gamestate.currentRound > 0 && gamestate.currentRound === gamestate.minRound) {
                 SimulateLastRoundOfEvent(1000, gamestate, personaId);
             } else {
                 const predictions: string[] = JSON.parse(await AsyncStorage.getItem('@predictions') || '{}')
                 const n: number = 1000;
                 const successes = await SimulateRestOfEvent(n, gamestate, predictions, personaId);
-                const odds: number = 100* (successes / n)
+                const odds: number = 100 * (successes / n)
                 setWinOutOdds(Math.round(odds * 100) / 100); // round the odds to 2 decimal points
             }
             setProgress(1);
@@ -463,16 +463,16 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
 
     const styles = StyleSheet.create({
         container: {
-          flex: 1,
-          backgroundColor: '#ffffff',
-          alignItems: 'center',
+            flex: 1,
+            backgroundColor: '#ffffff',
+            alignItems: 'center',
         },
         simulationsResultsAreaContainer: {
             flex: 4,
             backgroundColor: '#ffffff',
             alignItems: 'center',
             flexDirection: "row",
-        },        
+        },
         winLossAreaContainer: {
             flex: .8,
             backgroundColor: '#ffffff',
@@ -488,7 +488,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             backgroundColor: '#ffffff',
             alignItems: 'center',
             flexDirection: "row",
-        },        
+        },
         simulationsResultsContainer: {
             flex: 1,
             backgroundColor: '#ffffff',
@@ -530,7 +530,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             backgroundColor: '#ffffff',
             alignItems: 'center',
             flexDirection: "row",
-        },        
+        },
         selectedItemContainer: {
             flex: 1,
             backgroundColor: '#cccccc',
@@ -546,16 +546,16 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
             flex: 1,
             backgroundColor: '#4bd154',
             alignItems: 'center',
-        },        
+        },
         drawSelectionContainer: {
             flex: 1,
             backgroundColor: '#f5d442',
             alignItems: 'center',
-        },        
+        },
         titleLabel: {
-          flex: 0,
-          fontSize: 20,
-          fontWeight: 'bold',
+            flex: 0,
+            fontSize: 20,
+            fontWeight: 'bold',
         },
         resultLabel: {
             flex: 0,
@@ -570,17 +570,17 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         winLossRoundCountLabel: {
             flex: 1,
             fontSize: 20,
-        },        
+        },
         headerItem: {
             fontSize: 16,
             fontWeight: 'bold',
             flex: 1,
-        }, 
+        },
         headerItemName: {
             fontSize: 16,
             fontWeight: 'bold',
             flex: 3,
-        },               
+        },
         item: {
             flex: 1,
             fontSize: 20,
@@ -588,7 +588,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         itemName: {
             flex: 3,
             fontSize: 20,
-        },        
+        },
         recalculateButton: {
             flex: 1,
             fontSize: 20,
@@ -600,7 +600,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         }
     });
 
-    const Item = ({ personaId, rank, title, matchPoints, omw, gwp, ogw, onPress, backgroundColor, textColor }: {personaId: string, rank: number, title: string, matchPoints: number, omw: number, gwp: number, ogw: number, onPress: any, backgroundColor: any, textColor: any}) => (
+    const Item = ({ personaId, rank, title, matchPoints, omw, gwp, ogw, onPress, backgroundColor, textColor }: { personaId: string, rank: number, title: string, matchPoints: number, omw: number, gwp: number, ogw: number, onPress: any, backgroundColor: any, textColor: any }) => (
         <TouchableOpacity onPress={onPress} style={[styles.item, backgroundColor]}>
             <View style={personaId === ourPersonaId ? styles.ourItemContainer : (personaId === selectedId ? styles.selectedItemContainer : styles.itemContainer)}>
                 <Text style={[styles.item, textColor]}>{rank}</Text>
@@ -617,8 +617,8 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         updatePredictionsDisplay(currentGamestate)
     }
 
-    const renderItem = ({ item }: {item: any}) => (
-        <Item 
+    const renderItem = ({ item }: { item: any }) => (
+        <Item
             rank={item.rank}
             title={item.title}
             matchPoints={item.matchPoints}
@@ -637,16 +637,17 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         />
     );
 
-    const headerItem = ({ item }: {item: any}) => (
+    const headerItem = ({ item }: { item: any }) => (
         <View style={[styles.container, {
-            flexDirection: "row"}]}>
+            flexDirection: "row"
+        }]}>
             <Text style={[styles.headerItem]}>Place</Text>
             <Text style={[styles.headerItemName]}>Name</Text>
             <Text style={[styles.headerItem]}>Points</Text>
             <Text style={[styles.headerItem]}>OMW%</Text>
         </View>
     );
-    
+
     const wait = (timeout: number) => {
         return new Promise(resolve => setTimeout(resolve, timeout));
     }
@@ -675,14 +676,14 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         }
         await new Promise(f => setTimeout(f, 10)); // Sleep real quick to give the UI a chance to update        
         // Run the simulations if it's the last round
-        if (currentGamestate.currentRound === currentGamestate.minRound)  {
-            SimulateLastRoundOfEvent(1000, currentGamestate, personaId);            
+        if (currentGamestate.currentRound === currentGamestate.minRound) {
+            SimulateLastRoundOfEvent(1000, currentGamestate, personaId);
         }
-        else{
-            const predictions: string[] = JSON.parse(await AsyncStorage.getItem('@predictions')  || '{}')
+        else {
+            const predictions: string[] = JSON.parse(await AsyncStorage.getItem('@predictions') || '{}')
             const n: number = 1000;
             const successes = await SimulateRestOfEvent(n, currentGamestate, predictions, personaId);
-            const odds: number = 100* (successes / n)
+            const odds: number = 100 * (successes / n)
             setWinOutOdds(Math.round(odds * 100) / 100); // round the odds to 2 decimal points
         }
         setRefreshing(false);
@@ -690,7 +691,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
     }
 
     class SimulationResultsArea extends Component {
-        render(){
+        render() {
             if (stale) {
                 return (
                     <Pressable style={styles.recalculateButton} onPress={() => recalculate(false)}>
@@ -699,8 +700,8 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                 );
             }
 
-            if (progress >= 1){
-                if (currentRound === minRounds){
+            if (progress >= 1) {
+                if (currentRound === minRounds) {
                     return (
                         <View style={styles.simulationsResultsAreaContainer}>
                             <RefreshControl refreshing={refreshing} onRefresh={onRefresh}>
@@ -735,8 +736,8 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                                             <Text style={styles.titleLabel}>{oppConversionRateLoss}%</Text>
                                         </View>
                                     </View>
-                                </View>      
-                            </RefreshControl>        
+                                </View>
+                            </RefreshControl>
                         </View>
                     )
                 } else {
@@ -760,7 +761,7 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
                     </View>
                 );
             }
-        }        
+        }
     };
 
     type WinLossProps = {
@@ -772,67 +773,67 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         constructor(props: WinLossProps) {
             super(props);
             this.state = {
-              result: props.result,
+                result: props.result,
             };
         }
 
-        render(){
-            if (this.state.result === "loss"){
+        render() {
+            if (this.state.result === "loss") {
                 return (
                     <View style={styles.lossSelectionContainer}>
                         <Pressable onPress={() => {
-                            if (this.props.round+1 >= currentRound){
+                            if (this.props.round + 1 >= currentRound) {
                                 const predictions: string[] = predictionsData;
                                 predictions[this.props.round] = "draw";
-                                this.setState({ result: "draw"})
+                                this.setState({ result: "draw" })
                                 setPredictionsData(predictions);
                                 AsyncStorage.setItem('@predictions', JSON.stringify(predictions));
                                 setStale(true)
                             }
-                        }}>                  
+                        }}>
                             <Text style={styles.winlossLabels}>Loss</Text>
-                            <Text style={styles.winLossRoundCountLabel}>Round {this.props.round+1}</Text>
+                            <Text style={styles.winLossRoundCountLabel}>Round {this.props.round + 1}</Text>
                         </Pressable>
-                    </View> 
+                    </View>
                 );
-            } else if (this.state.result === "win"){
+            } else if (this.state.result === "win") {
                 return (
                     <View style={styles.winSelectionContainer}>
                         <Pressable onPress={() => {
-                            if (this.props.round+1 >= currentRound){
+                            if (this.props.round + 1 >= currentRound) {
                                 const predictions: string[] = predictionsData;
                                 predictions[this.props.round] = "loss";
-                                this.setState({ result: "loss"})
+                                this.setState({ result: "loss" })
                                 setPredictionsData(predictions);
                                 AsyncStorage.setItem('@predictions', JSON.stringify(predictions));
                                 setStale(true)
                             }
                         }}>
                             <Text style={styles.winlossLabels}>Win</Text>
-                            <Text style={styles.winLossRoundCountLabel}>Round {this.props.round+1}</Text>
-                        </Pressable> 
-                    </View>    
-                )            
+                            <Text style={styles.winLossRoundCountLabel}>Round {this.props.round + 1}</Text>
+                        </Pressable>
+                    </View>
+                )
             }
             else {
                 return (
                     <View style={styles.drawSelectionContainer}>
                         <Pressable onPress={() => {
-                            if (this.props.round+1 >= currentRound){
+                            if (this.props.round + 1 >= currentRound) {
                                 const predictions: string[] = predictionsData;
                                 predictions[this.props.round] = "win";
-                                this.setState({ result: "win"})
+                                this.setState({ result: "win" })
                                 setPredictionsData(predictions);
                                 AsyncStorage.setItem('@predictions', JSON.stringify(predictions));
                                 setStale(true)
                             }
                         }}>
                             <Text style={styles.winlossLabels}>Draw</Text>
-                            <Text style={styles.winLossRoundCountLabel}>Round {this.props.round+1}</Text>
-                        </Pressable> 
-                    </View>    
-                )            
-            }            
+                            <Text style={styles.winLossRoundCountLabel}>Round {this.props.round + 1}</Text>
+                        </Pressable>
+                    </View>
+                )
+            }
 
         }
     }
@@ -841,36 +842,36 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
         constructor(props: any) {
             super(props);
             this.state = {
-              predictions: props.predictions,
+                predictions: props.predictions,
             };
         }
 
         renderWinLossButtons = () => {
             return this.state.predictions.map((result, roundNumber) => (
-                <WinLossButton key={roundNumber} round={roundNumber} result={result}/>
+                <WinLossButton key={roundNumber} round={roundNumber} result={result} />
             ))
         }
 
-        render(){
-            if (currentRound < minRounds){
+        render() {
+            if (currentRound < minRounds) {
                 return (
-                    <View style={styles.winLossAreaContainer}>     
+                    <View style={styles.winLossAreaContainer}>
                         <View style={styles.winLossSelectorContainer}>
                             {this.renderWinLossButtons()}
                         </View>
                     </View>
                 );
             }
-            else{
+            else {
                 return (
-                    <View/>
+                    <View />
                 );
             }
         }
     }
 
     class StandingsArea extends Component {
-        render(){
+        render() {
             if (standingsData.length === 0) {
                 return (<Progress.Circle size={30} indeterminate={true} />)
             } else {
@@ -894,9 +895,9 @@ export function StandingsScreen({route, navigation}: {route: any, navigation: an
 
     return (
         <View style={styles.container}>
-            <SimulationResultsArea/>
-            <WinLossSelectorArea predictions={predictionsData}/>
-            <StandingsArea/>
+            <SimulationResultsArea />
+            <WinLossSelectorArea predictions={predictionsData} />
+            <StandingsArea />
         </View>
     );
 }

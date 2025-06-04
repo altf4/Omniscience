@@ -81,7 +81,7 @@ export class Player {
 
 // Represents a snapshot of the current state of an event, including player standings and pairings for the current round
 export class GameState {
-    players: {[personaId: string] : Player}
+    players: { [personaId: string]: Player }
     pairings: string[][]
     currentRound: number
     minRound: number
@@ -103,11 +103,11 @@ export class GameState {
 
     fromJSON(jsonBlob: string) {
         let jsonObject = JSON.parse(jsonBlob);
-        
+
         for (let key in jsonObject.players) {
             this.players[key] = JSON.parse(jsonObject.players[key])
         }
-            
+
         this.pairings = jsonObject.pairings;
         this.minRound = jsonObject.minRound;
         this.currentRound = jsonObject.currentRound;
@@ -145,13 +145,13 @@ export class GameState {
         const playersArray = this.getSortedPlayers();
         var alreadyPaired: string[] = [];
         this.pairings = [];
-    
+
         //TODO const isFinalRound = When it's the final round, pairings don't happen randomly, they happen in rank order
 
         // For each player, find a match. Starting with the top.
         for (let player of playersArray) {
             // Shortcut out if this player is already paired.
-            if(!alreadyPaired.includes(player.personaId)) {
+            if (!alreadyPaired.includes(player.personaId)) {
                 var matchPoints: number = player.matchPoints;
                 for (var i = matchPoints; i >= 0; i--) {
                     var potentialOpponents: string[] = this.getPlayersWithPoints(i);
@@ -160,7 +160,7 @@ export class GameState {
                         // remove anyone this player has already played against, and anyone in the alreadyPaired list
                         //TODO This has the effect of refusing to give a player a bye twice. Which is probably correct, but will just simply FAIL to pair them
                         // up against anyone if that's the only option.
-                        if (!player.opponents.includes(opponent) && !alreadyPaired.includes(opponent)) { 
+                        if (!player.opponents.includes(opponent) && !alreadyPaired.includes(opponent)) {
                             // Don't pair against yourself
                             if (opponent !== player.personaId) {
                                 notOpponents.push(opponent);
@@ -175,18 +175,18 @@ export class GameState {
                         alreadyPaired.push(player.personaId);
                         alreadyPaired.push(randomPlayer);
                         break;
-                    // If there's nobody else to pair against and we've gone through every match point value, then pair up against bye
+                        // If there's nobody else to pair against and we've gone through every match point value, then pair up against bye
                     } else if (matchPoints === 0 || i === 0) { // TODO this isn't correct. matchPoints should be checked against the lowest amongst real players. Not 0
                         this.pairings.push(["bye", player.personaId])
                         alreadyPaired.push(player.personaId);
-                    // If there's only one player left, give them a bye regardless of other circumstances
-                    } else if (alreadyPaired.length === playersArray.length-1) { 
+                        // If there's only one player left, give them a bye regardless of other circumstances
+                    } else if (alreadyPaired.length === playersArray.length - 1) {
                         this.pairings.push(["bye", player.personaId])
                         alreadyPaired.push(player.personaId);
                     }
                 }
             }
-        } 
+        }
     }
 
     // Returns an array of all personaId's with exactly the number of match points specified
@@ -209,11 +209,11 @@ export class GameState {
         }
         // Sort the players by breakers
         function playerSort(a: Player, b: Player) {
-            if (a.matchPoints === b.matchPoints){
+            if (a.matchPoints === b.matchPoints) {
                 // First breaker: Opponent Match Win Percent
-                if(a.opponentMatchWinPercent === b.opponentMatchWinPercent) {
+                if (a.opponentMatchWinPercent === b.opponentMatchWinPercent) {
                     // Second breaker: Game win percent
-                    if(a.gameWinPercent === b.gameWinPercent) {
+                    if (a.gameWinPercent === b.gameWinPercent) {
                         // Third breaker: Opponent game win percent
                         return a.opponentGameWinPercent > b.opponentGameWinPercent ? -1 : 1;
                         // What to do if this is STILL tied? Unclear. But it ought to be pretty rare
@@ -226,7 +226,7 @@ export class GameState {
             } else {
                 return a.matchPoints > b.matchPoints ? -1 : 1;
             }
-            
+
         }
         playersArray.sort(playerSort);
         return playersArray;
@@ -239,7 +239,7 @@ export class GameState {
 //  result - One of "win", "draw", or "loss"
 export async function SimulateRound(gamestate: GameState, targetPlayer: string, result: string): Promise<GameState> {
     // Make a copy of the players dict since we're going to be mutating it
-    var players: {[personaId: string] : Player} = {};
+    var players: { [personaId: string]: Player } = {};
     for (let player in gamestate.players) {
         var newPlayer = new Player()
         newPlayer.fromJSON(gamestate.players[player].toJSON())
@@ -275,7 +275,7 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
         if (targetPlayer === playerA.personaId || targetPlayer === playerB.personaId) {
             // reset the players so Player A is the target
             playerA = players[targetPlayer];
-            if (gamestate.pairings[pairing][0] === targetPlayer){
+            if (gamestate.pairings[pairing][0] === targetPlayer) {
                 playerB = players[gamestate.pairings[pairing][1]];
             } else {
                 playerB = players[gamestate.pairings[pairing][0]];
@@ -292,7 +292,7 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
                 // Assume worse case loss (0-2)
                 dieroll = 0.1;
                 randomdraw = 1;
-            } 
+            }
             else if (result === "draw") {
                 randomdraw = 0;
             } else {
@@ -304,7 +304,7 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
             //  It's called a trivial draw in if both players are three more match points or greater above the current 8th place holder
             var eighthPlace: string = "";
             for (let player in players) {
-                if (players[player].rank === 8){
+                if (players[player].rank === 8) {
                     eighthPlace = player;
                     break;
                 }
@@ -318,11 +318,11 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
                 }
             }
         }
-    
+
         // If one of the players is "bye", then handle that separately
         if (playerA.isBye || playerB.isBye) {
             // Set playerA to the non-bye player
-            if ("bye" === gamestate.pairings[pairing][0]){
+            if ("bye" === gamestate.pairings[pairing][0]) {
                 playerA = players[gamestate.pairings[pairing][1]];
             } else {
                 playerA = players[gamestate.pairings[pairing][0]];
@@ -348,7 +348,7 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
             //   1 - 2
             //   2 - 1
             //   2 - 0
-            else if(dieroll < 0.25) {
+            else if (dieroll < 0.25) {
                 playerA.wins += 0
                 playerB.wins += 1
                 playerA.losses += 1
@@ -368,7 +368,7 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
                 playerA.gameLosses += 2
                 playerB.gameLosses += 1
             }
-            else if (0.50 <= dieroll && dieroll < 0.75  ){
+            else if (0.50 <= dieroll && dieroll < 0.75) {
                 playerA.wins += 1
                 playerB.wins += 0
                 playerA.losses += 0
@@ -404,10 +404,10 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
                 // Again, don't recalculate for bye players
                 if (opponent !== "bye") {
                     // Match and game winrate has a floor of 1/3, per https://blogs.magicjudges.org/rules/mtr-appendix-c/
-                    const matchWinRate: number = players[opponent].wins / (players[opponent].wins+players[opponent].losses);
-                    matchscores.push(Math.max(1/3, matchWinRate));
-                    const gameWinRate: number = players[opponent].gameWins / (players[opponent].gameWins+players[opponent].gameLosses);
-                    gamescores.push(Math.max(1/3, gameWinRate));
+                    const matchWinRate: number = players[opponent].wins / (players[opponent].wins + players[opponent].losses);
+                    matchscores.push(Math.max(1 / 3, matchWinRate));
+                    const gameWinRate: number = players[opponent].gameWins / (players[opponent].gameWins + players[opponent].gameLosses);
+                    gamescores.push(Math.max(1 / 3, gameWinRate));
                 }
             }
             // Average out the match and game scores
@@ -419,7 +419,7 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
                 player.opponentGameWinPercent += element;
             });
             player.opponentGameWinPercent /= gamescores.length;
-            player.gameWinPercent = Math.max(1/3, player.gameWins / (player.gameWins+player.gameLosses));
+            player.gameWinPercent = Math.max(1 / 3, player.gameWins / (player.gameWins + player.gameLosses));
             player.matchPoints = (player.wins * 3) + player.draws;
         }
     }
@@ -449,12 +449,12 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
 export async function SimulateEvent(n: number, gamestate: GameState, results: string[], targetPlayerId: string, progressCallback: (percent: number) => null): Promise<number> {
     var successes: number = 0;
     if (results.length !== gamestate.minRound) {
-        throw new RangeError(); 
+        throw new RangeError();
     }
 
     for (let i = 0; i < n; i++) {
         var nextGamestate: GameState = gamestate.copy();
-        while(nextGamestate.currentRound < nextGamestate.minRound) {
+        while (nextGamestate.currentRound < nextGamestate.minRound) {
             // Do we already have pairings for the next round? If so, use those. 
             if (nextGamestate.pairings.length === 0) {
                 nextGamestate.generateRandomPairings();
@@ -468,7 +468,7 @@ export async function SimulateEvent(n: number, gamestate: GameState, results: st
 
         if (i % 100 === 0) {
             if (progressCallback !== undefined) {
-                progressCallback(i/n);
+                progressCallback(i / n);
             }
         }
     }
@@ -478,13 +478,13 @@ export async function SimulateEvent(n: number, gamestate: GameState, results: st
 // Synchronous function returns true if the target player is currently in the top 8 of the given GameState
 function isInTop8(gamestate: GameState, targetPlayer: string): boolean {
     // Flatten players map into array
-    var playersArray: Player[] = gamestate.getSortedPlayers();     
+    var playersArray: Player[] = gamestate.getSortedPlayers();
     // Just get the top 8
     const top8: Player[] = playersArray.slice(0, 8)
 
     for (let index in top8) {
         const player: Player = playersArray[index];
-        if (targetPlayer === player.personaId){
+        if (targetPlayer === player.personaId) {
             return true;
         }
     }

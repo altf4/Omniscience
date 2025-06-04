@@ -1,5 +1,5 @@
-import {describe, expect, test} from '@jest/globals';
-import {GameState, Player, SimulateRound, SimulateEvent} from './core/gamestate';
+import { describe, expect, test } from '@jest/globals';
+import { GameState, Player, SimulateRound, SimulateEvent } from './core/gamestate';
 
 test('import / export players', () => {
     var playerA = new Player()
@@ -66,7 +66,7 @@ test('import / export gamestate', () => {
     var gamestateA: GameState = new GameState();
     // Saturate it with 16 players
     var rank: number = 1;
-    for (let i = 0; i < 16; i++){
+    for (let i = 0; i < 16; i++) {
         var player = new Player();
         player.personaId = "personaId" + i;
         player.firstName = "first" + i;
@@ -91,7 +91,7 @@ test('thick copy gamestate', async () => {
     gamestateA.minRound = 7;
     // Saturate it with 16 players
     var rank: number = 1;
-    for (let i = 0; i < 16; i++){
+    for (let i = 0; i < 16; i++) {
         var player = new Player();
         player.personaId = "personaId" + i;
         player.firstName = "first" + i;
@@ -130,7 +130,7 @@ test('sorting players', () => {
     gamestateA.minRound = 7;
     // Saturate it with 16 players
     var rank: number = 1;
-    for (let i = 0; i < 16; i++){
+    for (let i = 0; i < 16; i++) {
         var player = new Player();
         player.personaId = "personaId" + i;
         player.firstName = "first" + i;
@@ -150,7 +150,7 @@ test('sorting players', () => {
 test('1000 random pairings from blank', async () => {
     var gamestate: GameState = new GameState();
     var rank: number = 1;
-    for (let i = 0; i < 16; i++){
+    for (let i = 0; i < 16; i++) {
         var player = new Player();
         player.personaId = "personaId" + i;
         player.firstName = "first" + i;
@@ -159,7 +159,7 @@ test('1000 random pairings from blank', async () => {
         rank += 1;
         gamestate.players[player.personaId] = player;
     }
-    for (let i = 0; i < 1000; i++){
+    for (let i = 0; i < 1000; i++) {
         gamestate.generateRandomPairings();
         expect(gamestate.pairings.length).toBe(8)
         let uniquePlayers = new Set<string>();
@@ -178,7 +178,7 @@ test('1000 random pairings from blank', async () => {
 test('round two pairings', async () => {
     var gamestate: GameState = new GameState();
     var rank: number = 1;
-    for (let i = 0; i < 16; i++){
+    for (let i = 0; i < 16; i++) {
         var player = new Player();
         player.personaId = "personaId" + i;
         player.firstName = "first" + i;
@@ -189,7 +189,7 @@ test('round two pairings', async () => {
     }
     var round1results = await SimulateRound(gamestate, "personaId4", "win")
 
-    for (let i = 0; i < 100; i++){
+    for (let i = 0; i < 100; i++) {
         // Now that we have some results, let's see if the NEXT round's pairings make sense
         round1results.generateRandomPairings()
         // There should be at most one pair down amongst 1-0 players
@@ -197,7 +197,7 @@ test('round two pairings', async () => {
         for (let pairing of round1results.pairings) {
             const matchPointsA: number = round1results.players[pairing[0]].matchPoints;
             const matchpointsB: number = round1results.players[pairing[1]].matchPoints;
-            if (matchPointsA === 3 || matchpointsB === 3){
+            if (matchPointsA === 3 || matchpointsB === 3) {
                 if (matchPointsA + matchpointsB < 6) {
                     pairdowns += 1;
                 }
@@ -209,13 +209,13 @@ test('round two pairings', async () => {
 });
 
 test('16 player gamestate wins', async () => {
-    for (let j = 0; j < 100; j++){
+    for (let j = 0; j < 100; j++) {
         var gamestate: GameState = new GameState();
         expect(gamestate).not.toBeNull();
 
         gamestate.minRound = 4;
         var rank: number = 1;
-        for (let i = 0; i < 16; i++){
+        for (let i = 0; i < 16; i++) {
             var player = new Player();
             player.personaId = "personaId" + i;
             player.firstName = "first" + i;
@@ -249,7 +249,7 @@ test('16 player gamestate wins', async () => {
         expect(round2results.currentRound).toBe(2)
         expect(round2results.players["personaId4"].rank).toBeLessThanOrEqual(4)
         expect(round2results.players["bye"]).toBe(undefined)
-        
+
         // Round 3
         var round3results = await SimulateRound(round2results, "personaId4", "win")
         expect(round3results.currentRound).toBe(3)
@@ -259,7 +259,7 @@ test('16 player gamestate wins', async () => {
         // There should be no bye players
         const sortedPlayers = round3results.getSortedPlayers()
         expect(sortedPlayers.length).toBe(16)
-        for (let x = 0; x < sortedPlayers.length; x++){
+        for (let x = 0; x < sortedPlayers.length; x++) {
             expect(sortedPlayers[x].personaId).not.toBe("bye")
         }
 
@@ -277,13 +277,13 @@ test('16 player gamestate wins', async () => {
     }
 });
 
-test('16 player gamestate losses', async () => {   
+test('16 player gamestate losses', async () => {
     var gamestate: GameState = new GameState();
     expect(gamestate).not.toBeNull();
 
     gamestate.minRound = 4;
     var rank: number = 1;
-    for (let i = 0; i < 16; i++){
+    for (let i = 0; i < 16; i++) {
         var player = new Player();
         player.personaId = "personaId" + i;
         player.firstName = "first" + i;
@@ -292,7 +292,7 @@ test('16 player gamestate losses', async () => {
         rank += 1;
         gamestate.players[player.personaId] = player;
     }
-    
+
     var round1results = await SimulateRound(gamestate, "personaId4", "loss")
     expect(round1results.players["personaId4"].matchPoints).toBe(0)
 
@@ -316,7 +316,7 @@ test('garbage input to SimulateRound', async () => {
 
     gamestate.minRound = 4;
     var rank: number = 1;
-    for (let i = 0; i < 16; i++){
+    for (let i = 0; i < 16; i++) {
         var player = new Player();
         player.personaId = "personaId" + i;
         player.firstName = "first" + i;
@@ -335,7 +335,7 @@ test('7 players with a bye', async () => {
 
     gamestate.minRound = 4;
     var rank: number = 1;
-    for (let i = 0; i < 7; i++){
+    for (let i = 0; i < 7; i++) {
         var player = new Player();
         player.personaId = "personaId" + i;
         player.firstName = "first" + i;
@@ -381,7 +381,7 @@ test('simulate whole event', async () => {
 
     gamestate.minRound = 4;
     var rank: number = 1;
-    for (let i = 0; i < 16; i++){
+    for (let i = 0; i < 16; i++) {
         var player = new Player();
         player.personaId = "personaId" + i;
         player.firstName = "first" + i;
@@ -400,7 +400,7 @@ test('bad results length', async () => {
 
     gamestate.minRound = 4;
     var rank: number = 1;
-    for (let i = 0; i < 16; i++){
+    for (let i = 0; i < 16; i++) {
         var player = new Player();
         player.personaId = "personaId" + i;
         player.firstName = "first" + i;
@@ -410,7 +410,7 @@ test('bad results length', async () => {
         gamestate.players[player.personaId] = player;
     }
 
-    try{
+    try {
         await SimulateEvent(100, gamestate, ["win", "win", "draw"], "personaId2", undefined)
     } catch (err: unknown) {
         expect(err).toBeInstanceOf(RangeError)
