@@ -88,7 +88,7 @@ export class GameState {
     roundHistory: any[]
 
     toJSON(): string {
-        var jsonstring = JSON.stringify(
+        const jsonstring = JSON.stringify(
             {
                 players: this.players,
                 pairings: this.pairings,
@@ -116,10 +116,10 @@ export class GameState {
 
     // Make thick copy of the gamestate
     copy(): GameState {
-        var newGamestate: GameState = new GameState();
+        const newGamestate: GameState = new GameState();
         for (let player in this.players) {
             // newGamestate.players[player] = {...this.players[player]};
-            var newPlayer = new Player()
+            const newPlayer = new Player()
             newPlayer.fromJSON(this.players[player].toJSON())
             newGamestate.players[player] = newPlayer
         }
@@ -143,7 +143,7 @@ export class GameState {
     // Generates new pairings of the players, chosen at random
     generateRandomPairings() {
         const playersArray = this.getSortedPlayers();
-        var alreadyPaired: string[] = [];
+        const alreadyPaired: string[] = [];
         this.pairings = [];
 
         //TODO const isFinalRound = When it's the final round, pairings don't happen randomly, they happen in rank order
@@ -152,10 +152,10 @@ export class GameState {
         for (let player of playersArray) {
             // Shortcut out if this player is already paired.
             if (!alreadyPaired.includes(player.personaId)) {
-                var matchPoints: number = player.matchPoints;
-                for (var i = matchPoints; i >= 0; i--) {
-                    var potentialOpponents: string[] = this.getPlayersWithPoints(i);
-                    var notOpponents: string[] = []; // same as above, but with all previous opponents removed 
+                const matchPoints: number = player.matchPoints;
+                for (let i = matchPoints; i >= 0; i--) {
+                    const potentialOpponents: string[] = this.getPlayersWithPoints(i);
+                    const notOpponents: string[] = []; // same as above, but with all previous opponents removed 
                     for (let opponent of potentialOpponents) {
                         // remove anyone this player has already played against, and anyone in the alreadyPaired list
                         //TODO This has the effect of refusing to give a player a bye twice. Which is probably correct, but will just simply FAIL to pair them
@@ -191,9 +191,9 @@ export class GameState {
 
     // Returns an array of all personaId's with exactly the number of match points specified
     getPlayersWithPoints(matchPoints: number): string[] {
-        var playersArray: string[] = [];
+        const playersArray: string[] = [];
         for (let player in this.players) {
-            if (this.players[player].matchPoints == matchPoints) {
+            if (this.players[player].matchPoints === matchPoints) {
                 playersArray.push(player);
             }
         }
@@ -203,7 +203,7 @@ export class GameState {
     // Get players as a sorted (by rank) array
     getSortedPlayers(): Player[] {
         // Flatten players map into array
-        var playersArray: Player[] = [];
+        const playersArray: Player[] = [];
         for (let player in this.players) {
             playersArray.push(this.players[player]);
         }
@@ -239,9 +239,9 @@ export class GameState {
 //  result - One of "win", "draw", or "loss"
 export async function SimulateRound(gamestate: GameState, targetPlayer: string, result: string): Promise<GameState> {
     // Make a copy of the players dict since we're going to be mutating it
-    var players: { [personaId: string]: Player } = {};
+    const players: { [personaId: string]: Player } = {};
     for (let player in gamestate.players) {
-        var newPlayer = new Player()
+        const newPlayer = new Player()
         newPlayer.fromJSON(gamestate.players[player].toJSON())
         players[player] = newPlayer
     }
@@ -251,18 +251,18 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
         gamestate.generateRandomPairings()
     }
 
-    for (let pairing in gamestate.pairings) {
+    for (const pairingEntry of gamestate.pairings) {
         // Make up a bye player here in case we need one
-        var byePlayer: Player = new Player()
+        const byePlayer: Player = new Player()
         byePlayer.isBye = true
         byePlayer.personaId = "bye"
 
-        var playerA: Player = players[gamestate.pairings[pairing][0]];
-        var playerB: Player = players[gamestate.pairings[pairing][1]];
+        let playerA: Player = players[pairingEntry[0]];
+        let playerB: Player = players[pairingEntry[1]];
 
-        var dieroll = Math.random();
-        var randomdraw = Math.random();
-        var isBye: boolean = false;
+        let dieroll = Math.random();
+        let randomdraw = Math.random();
+        let isBye: boolean = false;
 
         if (playerA === undefined) {
             playerA = byePlayer;
@@ -275,10 +275,10 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
         if (targetPlayer === playerA.personaId || targetPlayer === playerB.personaId) {
             // reset the players so Player A is the target
             playerA = players[targetPlayer];
-            if (gamestate.pairings[pairing][0] === targetPlayer) {
-                playerB = players[gamestate.pairings[pairing][1]];
+            if (pairingEntry[0] === targetPlayer) {
+                playerB = players[pairingEntry[1]];
             } else {
-                playerB = players[gamestate.pairings[pairing][0]];
+                playerB = players[pairingEntry[0]];
             }
             if (playerB === undefined) {
                 playerB = byePlayer;
@@ -302,7 +302,7 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
         } else {
             // If both players are trivially able to draw in, then always make them do that
             //  It's called a trivial draw in if both players are three more match points or greater above the current 8th place holder
-            var eighthPlace: string = "";
+            let eighthPlace: string = "";
             for (let player in players) {
                 if (players[player].rank === 8) {
                     eighthPlace = player;
@@ -322,10 +322,10 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
         // If one of the players is "bye", then handle that separately
         if (playerA.isBye || playerB.isBye) {
             // Set playerA to the non-bye player
-            if ("bye" === gamestate.pairings[pairing][0]) {
-                playerA = players[gamestate.pairings[pairing][1]];
+            if ("bye" === pairingEntry[0]) {
+                playerA = players[pairingEntry[1]];
             } else {
-                playerA = players[gamestate.pairings[pairing][0]];
+                playerA = players[pairingEntry[0]];
             }
             isBye = true;
             // Byes are considered 2-0 wins, count it now
@@ -397,9 +397,9 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
     for (let playerId in players) {
         // Don't bother for the bye player
         if (playerId !== "bye") {
-            var player: Player = players[playerId];
-            var matchscores: number[] = [];
-            var gamescores: number[] = [];
+            const player: Player = players[playerId];
+            const matchscores: number[] = [];
+            const gamescores: number[] = [];
             for (let opponent of player.opponents) {
                 // Again, don't recalculate for bye players
                 if (opponent !== "bye") {
@@ -424,12 +424,12 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
         }
     }
 
-    var returnState: GameState = new GameState();
+    const returnState: GameState = new GameState();
     returnState.players = players;
 
     // Recalculate rank
     const playersArray = returnState.getSortedPlayers();
-    var rank = 1;
+    let rank = 1;
     for (let player of playersArray) {
         returnState.players[player.personaId].rank = rank;
         rank += 1;
@@ -446,14 +446,14 @@ export async function SimulateRound(gamestate: GameState, targetPlayer: string, 
 // gamestate - Starting gamestate
 // results - array of results ("win", "loss", "draw") for the entire event. (length minrounds)
 // targetPlayerId - string personaId of the player to simulate for
-export async function SimulateEvent(n: number, gamestate: GameState, results: string[], targetPlayerId: string, progressCallback: (percent: number) => null): Promise<number> {
-    var successes: number = 0;
+export async function SimulateEvent(n: number, gamestate: GameState, results: string[], targetPlayerId: string, progressCallback?: (percent: number) => void): Promise<number> {
+    let successes: number = 0;
     if (results.length !== gamestate.minRound) {
         throw new RangeError();
     }
 
     for (let i = 0; i < n; i++) {
-        var nextGamestate: GameState = gamestate.copy();
+        let nextGamestate: GameState = gamestate.copy();
         while (nextGamestate.currentRound < nextGamestate.minRound) {
             // Do we already have pairings for the next round? If so, use those. 
             if (nextGamestate.pairings.length === 0) {
@@ -478,12 +478,11 @@ export async function SimulateEvent(n: number, gamestate: GameState, results: st
 // Synchronous function returns true if the target player is currently in the top 8 of the given GameState
 function isInTop8(gamestate: GameState, targetPlayer: string): boolean {
     // Flatten players map into array
-    var playersArray: Player[] = gamestate.getSortedPlayers();
+    const playersArray: Player[] = gamestate.getSortedPlayers();
     // Just get the top 8
     const top8: Player[] = playersArray.slice(0, 8)
 
-    for (let index in top8) {
-        const player: Player = playersArray[index];
+    for (const player of top8) {
         if (targetPlayer === player.personaId) {
             return true;
         }

@@ -5,12 +5,18 @@ import { LoginScreen } from './screens/loginscreen'
 import { EventsScreen } from './screens/eventsscreen'
 import { StandingsScreen } from './screens/standingsscreen';
 
-const Stack = createNativeStackNavigator();
+export type RootStackParamList = {
+  Login: undefined;
+  Events: undefined;
+  Standings: { eventID: string };
+};
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName='LoginScreen'>
+      <Stack.Navigator initialRouteName='Login'>
         <Stack.Screen
           name="Login"
           component={LoginScreen}>

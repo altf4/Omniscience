@@ -1,15 +1,23 @@
-import { Button, StyleSheet, Text, TextInput, RefreshControl, View, SafeAreaView, TouchableOpacity, FlatList, ViewStyle } from 'react-native';
+import { StyleSheet, Text, RefreshControl, View, SafeAreaView, TouchableOpacity, FlatList } from 'react-native';
 import React, { Component, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../App';
 
-export const EventsScreen = ({ navigation }: { navigation: any }) => {
+type Props = NativeStackScreenProps<RootStackParamList, 'Events'>;
+
+interface EventItem {
+    id: string;
+    title: string;
+}
+
+export const EventsScreen = ({ navigation }: Props) => {
     const OAUTH_API = "https://api.platform.wizards.com/auth/oauth/token"
     // const GRAPHQL_API = "https://api2.tabletop.tiamat-origin.cloud/silverbeak-griffin-service/graphql"
     const GRAPHQL_API = "https://api.tabletop.wizards.com/silverbeak-griffin-service/graphql"
 
-    var [accessToken, setAccessToken] = useState('');
-    const [selectedId, setSelectedId] = useState(null);
-    const [eventData, setEventData] = useState([]);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [eventData, setEventData] = useState<EventItem[]>([]);
     const [displayName, setDisplayName] = useState('');
     const [refreshing, setRefreshing] = useState(false);
 
@@ -30,7 +38,7 @@ export const EventsScreen = ({ navigation }: { navigation: any }) => {
                 body: formdata.toString(),
             });
             const json = await response.json();
-            if (response.status == 200) {
+            if (response.status === 200) {
                 await AsyncStorage.setItem("@access_token", json["access_token"]);
                 return true
             } else {
@@ -45,7 +53,7 @@ export const EventsScreen = ({ navigation }: { navigation: any }) => {
     // TODO: Make this a pure function that gets an events structure and have callers responsible for page behavior
     async function fetchEvents() {
         try {
-            const display: any = await AsyncStorage.getItem("@displayName");
+            const display = await AsyncStorage.getItem("@displayName");
             if (display) {
                 setDisplayName(display);
             }
@@ -71,8 +79,8 @@ export const EventsScreen = ({ navigation }: { navigation: any }) => {
             });
             const json = await response.json();
             console.log(json)
-            if (response.status == 200) {
-                var events: any[] = [];
+            if (response.status === 200) {
+                const events: EventItem[] = [];
                 for (let event of json["data"]["myActiveEvents"]) {
                     const id: string = event["id"];
                     const venue: string = event["venue"]
@@ -141,12 +149,12 @@ export const EventsScreen = ({ navigation }: { navigation: any }) => {
         wait(1000).then(() => setRefreshing(false));
     }, []);
 
-    const Item = ({ title, onPress, backgroundColor, textColor }: { title: string, onPress: any, backgroundColor: any, textColor: any }) => (
-        <TouchableOpacity onPress={onPress} style={[styles.item, backgroundColor]}>
-            <Text style={[styles.title, textColor]}>{title}</Text>
+    const Item = ({ title, onPress, backgroundColor, textColor }: { title: string, onPress: () => void, backgroundColor: string, textColor: string }) => (
+        <TouchableOpacity onPress={onPress} style={[styles.item, { backgroundColor }]}>
+            <Text style={[styles.title, { color: textColor }]}>{title}</Text>
         </TouchableOpacity>
     );
-    const renderItem = ({ item }: { item: any }) => (
+    const renderItem = ({ item }: { item: EventItem }) => (
         <Item title={item.title}
             onPress={() => {
                 navigation.navigate("Standings", {

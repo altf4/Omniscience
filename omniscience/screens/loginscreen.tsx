@@ -2,15 +2,19 @@ import { Button, StyleSheet, Text, TextInput, View, Linking } from 'react-native
 import React, { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../App';
 
-export const LoginScreen = ({ navigation }: { navigation: any }) => {
+type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
+
+export const LoginScreen = ({ navigation }: Props) => {
   const OAUTH_API = "https://api.platform.wizards.com/auth/oauth/token"
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  var [accessToken, setAccessToken] = useState('');
-  var [refreshToken, setRefreshToken] = useState('');
-  var [failedAuth, setFailedAuth] = useState(false);
+  const [accessToken, setAccessToken] = useState('');
+  const [refreshToken, setRefreshToken] = useState('');
+  const [failedAuth, setFailedAuth] = useState(false);
 
   // Are we already logged in?
   useEffect(() => {
@@ -70,7 +74,7 @@ export const LoginScreen = ({ navigation }: { navigation: any }) => {
   });
 
 
-  async function onLoginPress(event: any, username: string, password: string, navigator: any) {
+  async function onLoginPress(_event: unknown, username: string, password: string, navigator: Props['navigation']) {
     const formdata = new URLSearchParams({
       "grant_type": "password",
       "username": username,
@@ -85,7 +89,7 @@ export const LoginScreen = ({ navigation }: { navigation: any }) => {
       body: formdata.toString(),
     });
     const json = await response.json();
-    if (response.status == 200) {
+    if (response.status === 200) {
       setFailedAuth(false)
       await AsyncStorage.setItem("@access_token", json["access_token"]);
       await AsyncStorage.setItem("@refresh_token", json["refresh_token"]);
