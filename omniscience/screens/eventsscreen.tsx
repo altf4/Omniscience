@@ -3,6 +3,7 @@ import React, { Component, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../App';
+import { colors, radius, spacing, commonStyles } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Events'>;
 
@@ -111,35 +112,6 @@ export const EventsScreen = ({ navigation }: Props) => {
     }, []);
 
 
-    const styles = StyleSheet.create({
-        container: {
-            flex: 1,
-            backgroundColor: '#fff',
-            alignItems: 'center',
-        },
-        titleLabel: {
-            flex: 0,
-            fontSize: 64,
-            fontWeight: 'bold',
-        },
-        item: {
-            backgroundColor: '#71a0e3',
-            padding: 20,
-            marginVertical: 8,
-            marginHorizontal: 16,
-        },
-        title: {
-            fontSize: 32,
-        },
-        welcome: {
-            fontSize: 24,
-        },
-        noEventsMessage: {
-            fontSize: 24,
-        },
-    });
-
-
     const wait = (timeout: number) => {
         return new Promise(resolve => setTimeout(resolve, timeout));
     }
@@ -149,9 +121,10 @@ export const EventsScreen = ({ navigation }: Props) => {
         wait(1000).then(() => setRefreshing(false));
     }, []);
 
-    const Item = ({ title, onPress, backgroundColor, textColor }: { title: string, onPress: () => void, backgroundColor: string, textColor: string }) => (
-        <TouchableOpacity onPress={onPress} style={[styles.item, { backgroundColor }]}>
-            <Text style={[styles.title, { color: textColor }]}>{title}</Text>
+    const Item = ({ title, onPress }: { title: string, onPress: () => void }) => (
+        <TouchableOpacity onPress={onPress} style={styles.eventCard} activeOpacity={0.7}>
+            <Text style={styles.eventTitle}>{title}</Text>
+            <Text style={styles.eventArrow}>›</Text>
         </TouchableOpacity>
     );
     const renderItem = ({ item }: { item: EventItem }) => (
@@ -161,8 +134,6 @@ export const EventsScreen = ({ navigation }: Props) => {
                     eventID: item.id,
                 });
             }}
-            backgroundColor={"#6e3b6e"}
-            textColor={"black"}
         />
     );
 
@@ -170,25 +141,31 @@ export const EventsScreen = ({ navigation }: Props) => {
         render() {
             if (eventData.length === 0) {
                 return (
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh}>
-                        <SafeAreaView style={styles.container}>
-                            <Text style={styles.noEventsMessage}>No events...</Text>
-                        </SafeAreaView>
-                    </RefreshControl>
+                    <View style={styles.emptyState}>
+                        <Text style={styles.emptyIcon}>🎴</Text>
+                        <Text style={styles.emptyTitle}>No active events</Text>
+                        <Text style={styles.emptySubtitle}>Pull down to refresh</Text>
+                    </View>
                 )
             }
             else {
                 return (
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh}>
-                        <SafeAreaView style={styles.container}>
-                            <FlatList
-                                data={eventData}
-                                renderItem={renderItem}
-                                keyExtractor={item => item.id}
-                                extraData={selectedId}
-                            />
-                        </SafeAreaView>
-                    </RefreshControl>
+                    <SafeAreaView style={styles.listContainer}>
+                        <FlatList
+                            data={eventData}
+                            renderItem={renderItem}
+                            keyExtractor={item => item.id}
+                            extraData={selectedId}
+                            refreshControl={
+                                <RefreshControl
+                                    refreshing={refreshing}
+                                    onRefresh={onRefresh}
+                                    tintColor={colors.textSecondary}
+                                />
+                            }
+                            contentContainerStyle={styles.listContent}
+                        />
+                    </SafeAreaView>
                 )
             }
         }
@@ -196,9 +173,81 @@ export const EventsScreen = ({ navigation }: Props) => {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.welcome}>Welcome {displayName}</Text>
-            <Text style={styles.titleLabel}>Select Event:</Text>
+            <View style={styles.header}>
+                <Text style={styles.welcomeText}>Welcome, {displayName}</Text>
+                <Text style={styles.titleLabel}>Select Event</Text>
+            </View>
             <EventsList />
         </View>
     );
 }
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: colors.background,
+    },
+    header: {
+        paddingHorizontal: spacing.xxl,
+        paddingTop: spacing.xl,
+        paddingBottom: spacing.lg,
+    },
+    welcomeText: {
+        fontSize: 15,
+        color: colors.textSecondary,
+        marginBottom: spacing.xs,
+    },
+    titleLabel: {
+        fontSize: 28,
+        fontWeight: 'bold',
+        color: colors.textPrimary,
+    },
+    listContainer: {
+        flex: 1,
+    },
+    listContent: {
+        paddingHorizontal: spacing.lg,
+        paddingBottom: spacing.xxl,
+    },
+    eventCard: {
+        backgroundColor: colors.surface,
+        borderRadius: radius.card,
+        padding: spacing.xl,
+        marginBottom: spacing.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    eventTitle: {
+        fontSize: 16,
+        color: colors.textPrimary,
+        flex: 1,
+    },
+    eventArrow: {
+        fontSize: 24,
+        color: colors.textMuted,
+        marginLeft: spacing.md,
+    },
+    emptyState: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingBottom: 100,
+    },
+    emptyIcon: {
+        fontSize: 48,
+        marginBottom: spacing.lg,
+    },
+    emptyTitle: {
+        fontSize: 20,
+        fontWeight: '600',
+        color: colors.textSecondary,
+        marginBottom: spacing.sm,
+    },
+    emptySubtitle: {
+        fontSize: 15,
+        color: colors.textMuted,
+    },
+});

@@ -1,4 +1,4 @@
-import { Button, StyleSheet, Text, Pressable, RefreshControl, View, SafeAreaView, TouchableOpacity, FlatList } from 'react-native';
+import { StyleSheet, Text, Pressable, RefreshControl, View, SafeAreaView, TouchableOpacity, FlatList } from 'react-native';
 import React, { Component, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
@@ -6,6 +6,7 @@ import * as Progress from 'react-native-progress';
 import { GameState, Player, SimulateRound } from '../core/gamestate';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../App';
+import { colors, radius, spacing } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Standings'>;
 
@@ -268,7 +269,7 @@ export function StandingsScreen({ route, navigation }: Props) {
         for (let i = 0; i < n; i++) {
             let nextGamestate: GameState = gamestate.copy()
             while (nextGamestate.currentRound <= nextGamestate.minRound) {
-                // Do we already have pairings for the next round? If so, use those. 
+                // Do we already have pairings for the next round? If so, use those.
                 if (nextGamestate.pairings.length === 0) {
                     nextGamestate.generateRandomPairings();
                 }
@@ -474,155 +475,26 @@ export function StandingsScreen({ route, navigation }: Props) {
 
     }, []);
 
-    const styles = StyleSheet.create({
-        container: {
-            flex: 1,
-            backgroundColor: '#ffffff',
-            alignItems: 'center',
-        },
-        simulationsResultsAreaContainer: {
-            flex: 4,
-            backgroundColor: '#ffffff',
-            alignItems: 'center',
-            flexDirection: "row",
-        },
-        winLossAreaContainer: {
-            flex: .8,
-            backgroundColor: '#ffffff',
-            alignItems: 'center',
-        },
-        standingsAreaContainer: {
-            flex: 3,
-            backgroundColor: '#9999ff',
-            alignItems: 'center',
-        },
-        standingsContainer: {
-            flex: 1,
-            backgroundColor: '#ffffff',
-            alignItems: 'center',
-            flexDirection: "row",
-        },
-        simulationsResultsContainer: {
-            flex: 1,
-            backgroundColor: '#ffffff',
-            alignItems: 'center',
-            flexDirection: "row",
-        },
-        simulationBoxContainerWin: {
-            flex: 1,
-            backgroundColor: '#3aa832',
-            alignItems: 'center',
-            flexDirection: "column",
-        },
-        simulationBoxContainerDraw: {
-            flex: 1,
-            backgroundColor: '#ab7e24',
-            alignItems: 'center',
-            flexDirection: "column",
-        },
-        simulationBoxContainerLoss: {
-            flex: 1,
-            backgroundColor: '#cf2727',
-            alignItems: 'center',
-            flexDirection: "column",
-        },
-        itemContainer: {
-            flex: 1,
-            backgroundColor: '#ffffff',
-            alignItems: 'center',
-            flexDirection: "row",
-        },
-        ourItemContainer: {
-            flex: 1,
-            backgroundColor: '#dddddd',
-            alignItems: 'center',
-            flexDirection: "row",
-        },
-        winLossSelectorContainer: {
-            flex: 1,
-            backgroundColor: '#ffffff',
-            alignItems: 'center',
-            flexDirection: "row",
-        },
-        selectedItemContainer: {
-            flex: 1,
-            backgroundColor: '#cccccc',
-            alignItems: 'center',
-            flexDirection: "row",
-        },
-        lossSelectionContainer: {
-            flex: 1,
-            backgroundColor: '#ad1111',
-            alignItems: 'center',
-        },
-        winSelectionContainer: {
-            flex: 1,
-            backgroundColor: '#4bd154',
-            alignItems: 'center',
-        },
-        drawSelectionContainer: {
-            flex: 1,
-            backgroundColor: '#f5d442',
-            alignItems: 'center',
-        },
-        titleLabel: {
-            flex: 0,
-            fontSize: 20,
-            fontWeight: 'bold',
-        },
-        resultLabel: {
-            flex: 0,
-            fontSize: 48,
-            fontWeight: 'bold',
-        },
-        winlossLabels: {
-            flex: 0.5,
-            fontSize: 30,
-            fontWeight: 'bold',
-        },
-        winLossRoundCountLabel: {
-            flex: 1,
-            fontSize: 20,
-        },
-        headerItem: {
-            fontSize: 16,
-            fontWeight: 'bold',
-            flex: 1,
-        },
-        headerItemName: {
-            fontSize: 16,
-            fontWeight: 'bold',
-            flex: 3,
-        },
-        item: {
-            flex: 1,
-            fontSize: 20,
-        },
-        itemName: {
-            flex: 3,
-            fontSize: 20,
-        },
-        recalculateButton: {
-            flex: 1,
-            fontSize: 20,
-            backgroundColor: '#cccccc',
-        },
-        recalculateText: {
-            flex: 1,
-            fontSize: 40,
-        }
-    });
+    const Item = ({ personaId, rank, title, matchPoints, omw, onPress }: { personaId: string, rank: number, title: string, matchPoints: number, omw: number, onPress: () => void, backgroundColor: string, textColor: string }) => {
+        const isOurs = personaId === ourPersonaId;
+        const isSelected = personaId === selectedId;
+        const rowStyle = isOurs
+            ? styles.ourItemContainer
+            : isSelected
+                ? styles.selectedItemContainer
+                : styles.itemContainer;
 
-    const Item = ({ personaId, rank, title, matchPoints, omw, onPress, backgroundColor, textColor }: { personaId: string, rank: number, title: string, matchPoints: number, omw: number, onPress: () => void, backgroundColor: string, textColor: string }) => (
-        <TouchableOpacity onPress={onPress} style={[styles.item, { backgroundColor }]}>
-            <View style={personaId === ourPersonaId ? styles.ourItemContainer : (personaId === selectedId ? styles.selectedItemContainer : styles.itemContainer)}>
-                <Text style={[styles.item, { color: textColor }]}>{rank}</Text>
-                <Text style={[styles.itemName, { color: textColor }]}>{title}</Text>
-                <Text style={[styles.item, { color: textColor }]}>{matchPoints}</Text>
-                <Text style={[styles.item, { color: textColor }]}>{omw}</Text>
-            </View>
-        </TouchableOpacity>
-    );
+        return (
+            <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+                <View style={rowStyle}>
+                    <Text style={styles.itemRank}>{rank}</Text>
+                    <Text style={styles.itemName}>{title}</Text>
+                    <Text style={styles.itemStat}>{matchPoints}</Text>
+                    <Text style={styles.itemStat}>{omw}</Text>
+                </View>
+            </TouchableOpacity>
+        );
+    };
 
     async function onPressPlayer(id: string) {
         console.log("Pressed player")
@@ -642,20 +514,18 @@ export function StandingsScreen({ route, navigation }: Props) {
                 setSelectedName(item.title);
                 onPressPlayer(item.id);
             }}
-            backgroundColor={"#6e3b6e"}
-            textColor={"black"}
+            backgroundColor={""}
+            textColor={""}
             personaId={item.personaId}
         />
     );
 
     const headerItem = () => (
-        <View style={[styles.container, {
-            flexDirection: "row"
-        }]}>
-            <Text style={[styles.headerItem]}>Place</Text>
-            <Text style={[styles.headerItemName]}>Name</Text>
-            <Text style={[styles.headerItem]}>Points</Text>
-            <Text style={[styles.headerItem]}>OMW%</Text>
+        <View style={styles.headerRow}>
+            <Text style={styles.headerRank}>#</Text>
+            <Text style={styles.headerName}>Name</Text>
+            <Text style={styles.headerStat}>Pts</Text>
+            <Text style={styles.headerStat}>OMW%</Text>
         </View>
     );
 
@@ -705,46 +575,48 @@ export function StandingsScreen({ route, navigation }: Props) {
         render() {
             if (stale) {
                 return (
-                    <Pressable style={styles.recalculateButton} onPress={() => recalculate(false)}>
-                        <Text style={styles.recalculateText}>Recalculate ⟳</Text>
-                    </Pressable>
+                    <TouchableOpacity style={styles.recalculateButton} onPress={() => recalculate(false)} activeOpacity={0.8}>
+                        <Text style={styles.recalculateText}>Recalculate</Text>
+                    </TouchableOpacity>
                 );
             }
 
             if (progress >= 1) {
                 if (currentRound === minRounds) {
                     return (
-                        <View style={styles.simulationsResultsAreaContainer}>
+                        <View style={styles.simulationsArea}>
                             <RefreshControl refreshing={refreshing} onRefresh={onRefresh}>
-                                <View style={styles.container}>
-                                    <Text style={styles.titleLabel}>Your Odds:</Text>
-                                    <View style={styles.simulationsResultsContainer}>
-                                        <View style={styles.simulationBoxContainerWin}>
-                                            <Text style={styles.titleLabel}>Win</Text>
-                                            <Text style={styles.titleLabel}>{ourConversionRateWin}%</Text>
+                                <View style={styles.oddsSection}>
+                                    <Text style={styles.oddsSectionTitle}>Your Odds</Text>
+                                    <View style={styles.oddsRow}>
+                                        <View style={[styles.oddsBox, styles.oddsBoxWin]}>
+                                            <Text style={styles.oddsLabel}>Win</Text>
+                                            <Text style={styles.oddsValue}>{ourConversionRateWin}%</Text>
                                         </View>
-                                        <View style={styles.simulationBoxContainerDraw}>
-                                            <Text style={styles.titleLabel}>Draw</Text>
-                                            <Text style={styles.titleLabel}>{ourConversionRateDraw}%</Text>
+                                        <View style={[styles.oddsBox, styles.oddsBoxDraw]}>
+                                            <Text style={styles.oddsLabel}>Draw</Text>
+                                            <Text style={styles.oddsValue}>{ourConversionRateDraw}%</Text>
                                         </View>
-                                        <View style={styles.simulationBoxContainerLoss}>
-                                            <Text style={styles.titleLabel}>Loss</Text>
-                                            <Text style={styles.titleLabel}>{ourConversionRateLoss}%</Text>
+                                        <View style={[styles.oddsBox, styles.oddsBoxLoss]}>
+                                            <Text style={styles.oddsLabel}>Loss</Text>
+                                            <Text style={styles.oddsValue}>{ourConversionRateLoss}%</Text>
                                         </View>
                                     </View>
-                                    <Text style={styles.titleLabel}>Your Opponent's Odds:</Text>
-                                    <View style={styles.simulationsResultsContainer}>
-                                        <View style={styles.simulationBoxContainerWin}>
-                                            <Text style={styles.titleLabel}>Win</Text>
-                                            <Text style={styles.titleLabel}>{oppConversionRateWin}%</Text>
+                                </View>
+                                <View style={styles.oddsSection}>
+                                    <Text style={styles.oddsSectionTitle}>Opponent's Odds</Text>
+                                    <View style={styles.oddsRow}>
+                                        <View style={[styles.oddsBox, styles.oddsBoxWin]}>
+                                            <Text style={styles.oddsLabel}>Win</Text>
+                                            <Text style={styles.oddsValue}>{oppConversionRateWin}%</Text>
                                         </View>
-                                        <View style={styles.simulationBoxContainerDraw}>
-                                            <Text style={styles.titleLabel}>Draw</Text>
-                                            <Text style={styles.titleLabel}>{oppConversionRateDraw}%</Text>
+                                        <View style={[styles.oddsBox, styles.oddsBoxDraw]}>
+                                            <Text style={styles.oddsLabel}>Draw</Text>
+                                            <Text style={styles.oddsValue}>{oppConversionRateDraw}%</Text>
                                         </View>
-                                        <View style={styles.simulationBoxContainerLoss}>
-                                            <Text style={styles.titleLabel}>Loss</Text>
-                                            <Text style={styles.titleLabel}>{oppConversionRateLoss}%</Text>
+                                        <View style={[styles.oddsBox, styles.oddsBoxLoss]}>
+                                            <Text style={styles.oddsLabel}>Loss</Text>
+                                            <Text style={styles.oddsValue}>{oppConversionRateLoss}%</Text>
                                         </View>
                                     </View>
                                 </View>
@@ -753,12 +625,12 @@ export function StandingsScreen({ route, navigation }: Props) {
                     )
                 } else {
                     return (
-                        <View style={styles.container}>
+                        <View style={styles.mainOddsContainer}>
                             <RefreshControl refreshing={refreshing} onRefresh={onRefresh}>
-                                <View style={styles.container}>
-                                    <Text style={styles.titleLabel}>{selectedName}</Text>
-                                    <Text style={styles.resultLabel}>{winOutOdds}%</Text>
-                                    <Text style={styles.titleLabel}>Chance of making top 8</Text>
+                                <View style={styles.mainOddsContent}>
+                                    <Text style={styles.playerNameLabel}>{selectedName}</Text>
+                                    <Text style={styles.bigOddsValue}>{winOutOdds}%</Text>
+                                    <Text style={styles.oddsCaption}>Chance of making top 8</Text>
                                 </View>
                             </RefreshControl>
                         </View>
@@ -766,9 +638,15 @@ export function StandingsScreen({ route, navigation }: Props) {
                 }
             } else {
                 return (
-                    <View style={styles.container}>
-                        <Text style={styles.titleLabel}>Crunching numbers...</Text>
-                        <Progress.Bar progress={progress} width={200} />
+                    <View style={styles.loadingContainer}>
+                        <Text style={styles.loadingText}>Crunching numbers...</Text>
+                        <Progress.Bar
+                            progress={progress}
+                            width={200}
+                            color={colors.primary}
+                            unfilledColor={colors.surfaceHighlight}
+                            borderColor={colors.border}
+                        />
                     </View>
                 );
             }
@@ -789,63 +667,43 @@ export function StandingsScreen({ route, navigation }: Props) {
         }
 
         render() {
+            const isPast = this.props.round + 1 < currentRound;
+            let bgColor: string;
+            let label: string;
+
             if (this.state.result === "loss") {
-                return (
-                    <View style={styles.lossSelectionContainer}>
-                        <Pressable onPress={() => {
-                            if (this.props.round + 1 >= currentRound) {
-                                const predictions: string[] = predictionsData;
-                                predictions[this.props.round] = "draw";
-                                this.setState({ result: "draw" })
-                                setPredictionsData(predictions);
-                                AsyncStorage.setItem('@predictions', JSON.stringify(predictions));
-                                setStale(true)
-                            }
-                        }}>
-                            <Text style={styles.winlossLabels}>Loss</Text>
-                            <Text style={styles.winLossRoundCountLabel}>Round {this.props.round + 1}</Text>
-                        </Pressable>
-                    </View>
-                );
+                bgColor = colors.dangerDark;
+                label = "L";
             } else if (this.state.result === "win") {
-                return (
-                    <View style={styles.winSelectionContainer}>
-                        <Pressable onPress={() => {
-                            if (this.props.round + 1 >= currentRound) {
-                                const predictions: string[] = predictionsData;
-                                predictions[this.props.round] = "loss";
-                                this.setState({ result: "loss" })
-                                setPredictionsData(predictions);
-                                AsyncStorage.setItem('@predictions', JSON.stringify(predictions));
-                                setStale(true)
-                            }
-                        }}>
-                            <Text style={styles.winlossLabels}>Win</Text>
-                            <Text style={styles.winLossRoundCountLabel}>Round {this.props.round + 1}</Text>
-                        </Pressable>
-                    </View>
-                )
-            }
-            else {
-                return (
-                    <View style={styles.drawSelectionContainer}>
-                        <Pressable onPress={() => {
-                            if (this.props.round + 1 >= currentRound) {
-                                const predictions: string[] = predictionsData;
-                                predictions[this.props.round] = "win";
-                                this.setState({ result: "win" })
-                                setPredictionsData(predictions);
-                                AsyncStorage.setItem('@predictions', JSON.stringify(predictions));
-                                setStale(true)
-                            }
-                        }}>
-                            <Text style={styles.winlossLabels}>Draw</Text>
-                            <Text style={styles.winLossRoundCountLabel}>Round {this.props.round + 1}</Text>
-                        </Pressable>
-                    </View>
-                )
+                bgColor = colors.successDark;
+                label = "W";
+            } else {
+                bgColor = colors.warningDark;
+                label = "D";
             }
 
+            return (
+                <Pressable
+                    style={[styles.winLossPill, { backgroundColor: bgColor, opacity: isPast ? 0.6 : 1 }]}
+                    onPress={() => {
+                        if (this.props.round + 1 >= currentRound) {
+                            const predictions: string[] = predictionsData;
+                            let next: string;
+                            if (this.state.result === "win") next = "loss";
+                            else if (this.state.result === "loss") next = "draw";
+                            else next = "win";
+                            predictions[this.props.round] = next;
+                            this.setState({ result: next });
+                            setPredictionsData(predictions);
+                            AsyncStorage.setItem('@predictions', JSON.stringify(predictions));
+                            setStale(true);
+                        }
+                    }}
+                >
+                    <Text style={styles.winLossLabel}>{label}</Text>
+                    <Text style={styles.winLossRound}>R{this.props.round + 1}</Text>
+                </Pressable>
+            );
         }
     }
 
@@ -866,8 +724,8 @@ export function StandingsScreen({ route, navigation }: Props) {
         render() {
             if (currentRound < minRounds) {
                 return (
-                    <View style={styles.winLossAreaContainer}>
-                        <View style={styles.winLossSelectorContainer}>
+                    <View style={styles.winLossArea}>
+                        <View style={styles.winLossRow}>
                             {this.renderWinLossButtons()}
                         </View>
                     </View>
@@ -884,12 +742,16 @@ export function StandingsScreen({ route, navigation }: Props) {
     class StandingsArea extends Component {
         render() {
             if (standingsData.length === 0) {
-                return (<Progress.Circle size={30} indeterminate={true} />)
+                return (
+                    <View style={styles.loadingContainer}>
+                        <Progress.Circle size={30} indeterminate={true} color={colors.primary} />
+                    </View>
+                );
             } else {
                 return (
-                    <View style={styles.standingsAreaContainer}>
-                        <Text style={styles.titleLabel}>Round {currentRound} of {minRounds} Standings</Text>
-                        <SafeAreaView style={styles.standingsContainer}>
+                    <View style={styles.standingsArea}>
+                        <Text style={styles.standingsTitle}>Round {currentRound} of {minRounds}</Text>
+                        <SafeAreaView style={styles.standingsList}>
                             <FlatList
                                 data={standingsData}
                                 renderItem={renderItem}
@@ -906,9 +768,241 @@ export function StandingsScreen({ route, navigation }: Props) {
 
     return (
         <View style={styles.container}>
+            <StatusBar style="light" />
             <SimulationResultsArea />
             <WinLossSelectorArea predictions={predictionsData} />
             <StandingsArea />
         </View>
     );
 }
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: colors.background,
+    },
+
+    // Simulation results
+    simulationsArea: {
+        flex: 4,
+        paddingHorizontal: spacing.md,
+        paddingTop: spacing.md,
+    },
+    oddsSection: {
+        marginBottom: spacing.lg,
+    },
+    oddsSectionTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: colors.textSecondary,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: spacing.sm,
+        textAlign: 'center',
+    },
+    oddsRow: {
+        flexDirection: 'row',
+        gap: spacing.sm,
+    },
+    oddsBox: {
+        flex: 1,
+        borderRadius: radius.card,
+        paddingVertical: spacing.lg,
+        alignItems: 'center',
+    },
+    oddsBoxWin: {
+        backgroundColor: 'rgba(34, 197, 94, 0.2)',
+        borderWidth: 1,
+        borderColor: 'rgba(34, 197, 94, 0.3)',
+    },
+    oddsBoxDraw: {
+        backgroundColor: 'rgba(234, 179, 8, 0.2)',
+        borderWidth: 1,
+        borderColor: 'rgba(234, 179, 8, 0.3)',
+    },
+    oddsBoxLoss: {
+        backgroundColor: 'rgba(239, 68, 68, 0.2)',
+        borderWidth: 1,
+        borderColor: 'rgba(239, 68, 68, 0.3)',
+    },
+    oddsLabel: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: colors.textSecondary,
+        marginBottom: spacing.xs,
+    },
+    oddsValue: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: colors.textPrimary,
+    },
+
+    // Main odds display (mid-event)
+    mainOddsContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: spacing.xxl,
+    },
+    mainOddsContent: {
+        alignItems: 'center',
+    },
+    playerNameLabel: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        marginBottom: spacing.sm,
+    },
+    bigOddsValue: {
+        fontSize: 56,
+        fontWeight: 'bold',
+        color: colors.textPrimary,
+    },
+    oddsCaption: {
+        fontSize: 14,
+        color: colors.textMuted,
+        marginTop: spacing.xs,
+    },
+
+    // Loading
+    loadingContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: spacing.xxl,
+    },
+    loadingText: {
+        fontSize: 16,
+        color: colors.textSecondary,
+        marginBottom: spacing.lg,
+    },
+
+    // Recalculate
+    recalculateButton: {
+        backgroundColor: colors.primary,
+        borderRadius: radius.button,
+        paddingVertical: spacing.lg,
+        paddingHorizontal: spacing.xxl,
+        margin: spacing.lg,
+        alignItems: 'center',
+    },
+    recalculateText: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: colors.textPrimary,
+    },
+
+    // Win/Loss selector
+    winLossArea: {
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+    },
+    winLossRow: {
+        flexDirection: 'row',
+        gap: spacing.xs,
+        justifyContent: 'center',
+    },
+    winLossPill: {
+        borderRadius: radius.pill,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        alignItems: 'center',
+        minWidth: 44,
+    },
+    winLossLabel: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: colors.textPrimary,
+    },
+    winLossRound: {
+        fontSize: 10,
+        color: 'rgba(255,255,255,0.7)',
+        marginTop: 2,
+    },
+
+    // Standings
+    standingsArea: {
+        flex: 3,
+        paddingTop: spacing.md,
+    },
+    standingsTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: colors.textSecondary,
+        textAlign: 'center',
+        marginBottom: spacing.sm,
+    },
+    standingsList: {
+        flex: 1,
+    },
+    headerRow: {
+        flexDirection: 'row',
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.lg,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+        backgroundColor: colors.surface,
+    },
+    headerRank: {
+        flex: 0.5,
+        fontSize: 12,
+        fontWeight: '700',
+        color: colors.textMuted,
+        textTransform: 'uppercase',
+    },
+    headerName: {
+        flex: 3,
+        fontSize: 12,
+        fontWeight: '700',
+        color: colors.textMuted,
+        textTransform: 'uppercase',
+    },
+    headerStat: {
+        flex: 1,
+        fontSize: 12,
+        fontWeight: '700',
+        color: colors.textMuted,
+        textAlign: 'right',
+        textTransform: 'uppercase',
+    },
+    itemContainer: {
+        flexDirection: 'row',
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.lg,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(51, 65, 85, 0.5)',
+    },
+    ourItemContainer: {
+        flexDirection: 'row',
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.lg,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(51, 65, 85, 0.5)',
+        backgroundColor: 'rgba(99, 102, 241, 0.15)',
+        borderLeftWidth: 3,
+        borderLeftColor: colors.primary,
+    },
+    selectedItemContainer: {
+        flexDirection: 'row',
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.lg,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(51, 65, 85, 0.5)',
+        backgroundColor: colors.surfaceHighlight,
+    },
+    itemRank: {
+        flex: 0.5,
+        fontSize: 14,
+        color: colors.textMuted,
+    },
+    itemName: {
+        flex: 3,
+        fontSize: 14,
+        color: colors.textPrimary,
+    },
+    itemStat: {
+        flex: 1,
+        fontSize: 14,
+        color: colors.textSecondary,
+        textAlign: 'right',
+    },
+});
